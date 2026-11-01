@@ -145,6 +145,26 @@ describe('TrackPanel loaded state', () => {
     expect(fetchMock.mock.calls.some(([url]) => String(url).includes('/track'))).toBe(true);
   });
 
+  it('survives a zero-size canvas and keeps the bitmap at least one pixel', async () => {
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+      width: 0,
+      height: 0,
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    } as DOMRect);
+    vi.stubGlobal('fetch', loadedFetch());
+    render(<TrackPanel {...props()} />);
+    await screen.findByText('Dead-reckoned from GNSS speed and heading. Approximate shape, not a map.');
+    const canvas = screen.getByRole('img', { name: 'Relative ride track' }) as HTMLCanvasElement;
+    expect(canvas.width).toBeGreaterThanOrEqual(1);
+    expect(canvas.height).toBeGreaterThanOrEqual(1);
+  });
+
   it('refetches with color= and shows the response name/unit in the legend', async () => {
     const fetchMock = loadedFetch('sensor.lean_angle');
     vi.stubGlobal('fetch', fetchMock);

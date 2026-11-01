@@ -40,6 +40,16 @@ describe('fitView', () => {
     expect(worldToScreen(line, 0, 10).x).toBe(50);
   });
 
+  it('keeps a zero-size canvas finite', () => {
+    const view = fitView({ minX: 0, minY: 0, maxX: 10, maxY: 10 }, 0, 0, 28);
+    expect(Number.isFinite(view.scale)).toBe(true);
+    expect(view.scale).toBeGreaterThan(0);
+    expect(Number.isFinite(view.tx) && Number.isFinite(view.ty)).toBe(true);
+    const at = worldToScreen(view, 0, 0);
+    expect(Number.isFinite(at.x) && Number.isFinite(at.y)).toBe(true);
+    expect(scaleBar(view).px).toBeGreaterThanOrEqual(0);
+  });
+
   it('clamps absurd bounds to the sane zoom range', () => {
     const tiny = fitView({ minX: 0, minY: 0, maxX: 1e-9, maxY: 1e-9 }, 100, 100, 0);
     const huge = fitView({ minX: 0, minY: 0, maxX: 1e12, maxY: 1e12 }, 100, 100, 0);
