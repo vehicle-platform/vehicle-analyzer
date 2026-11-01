@@ -16,6 +16,8 @@ import {
   valueRange,
 } from '../services/compare';
 import { downloadFile } from '../services/exportService';
+import { TrackClient, TrackResponse } from '../services/trackClient';
+import { boundsOfSegments, fitView, worldToScreen } from '../services/trackGeometry';
 
 interface ComparePanelProps {
   token: string;
@@ -71,6 +73,51 @@ const Plot: React.FC<{
   );
 };
 
+/** Both relative tracks on one canvas; each track starts at its own (0, 0) origin. */
+const TrackOverlay: React.FC<{ a: TrackResponse; b: TrackResponse; colors: string[] }> = ({ a, b, colors }) => {
+  const canvasRef = React.useRef<HTMLCanvasElement | null>(null);
+
+  React.useEffect(() => {
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext('2d');
+    if (!canvas || !ctx) return;
+    const bounds = boundsOfSegments([...a.segments, ...b.segments]);
+    if (!bounds) return;
+    const view = fitView(bounds, canvas.width, canvas.height, 24);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    [a, b].forEach((track, index) => {
+      ctx.strokeStyle = colors[index];
+      for (const segment of track.segments) {
+        const n = Math.min(segment.xM.length, segment.yM.length);
+        if (n === 0) continue;
+        const first = worldToScreen(view, segment.xM[0], segment.yM[0]);
+        ctx.beginPath();
+        ctx.moveTo(first.x, first.y);
+        for (let i = 1; i < n; i++) {
+          const point = worldToScreen(view, segment.xM[i], segment.yM[i]);
+          ctx.lineTo(point.x, point.y);
+        }
+        ctx.stroke();
+      }
+    });
+  }, [a, b, colors]);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      width={W}
+      height={H_MAIN}
+      role="img"
+      aria-label="Compare relative tracks"
+      className="w-full border border-term-rule"
+      style={{ height: H_MAIN }}
+    />
+  );
+};
+
 /** Compare two recorded vehicle-server sessions on a common time or distance axis (roadmap A4). */
 export const ComparePanel: React.FC<ComparePanelProps> = ({ token, onTokenChange, serverUrl, onServerUrlChange }) => {
   const theme = useActiveTheme();
@@ -84,6 +131,11 @@ export const ComparePanel: React.FC<ComparePanelProps> = ({ token, onTokenChange
   const [status, setStatus] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [showTracks, setShowTracks] = useState(false);
+  const [trackA, setTrackA] = useState<TrackResponse | null>(null);
+  const [trackB, setTrackB] = useState<TrackResponse | null>(null);
+  const [trackBusy, setTrackBusy] = useState(false);
+  const [trackError, setTrackError] = useState<string | null>(null);
 
   const client = useMemo(() => new SessionClient(serverUrl, token), [serverUrl, token]);
 
@@ -118,6 +170,28 @@ export const ComparePanel: React.FC<ComparePanelProps> = ({ token, onTokenChange
       setBusy(false);
     }
   };
+
+  const loadTracks = useCallback(async () => {
+    if (!idA || !idB) return;
+    setTrackBusy(true);
+    setTrackError(null);
+    setTrackA(null);
+    setTrackB(null);
+    const trackClient = new TrackClient(serverUrl, token);
+    try {
+      const [a, b] = await Promise.all([trackClient.getTrack(idA), trackClient.getTrack(idB)]);
+      setTrackA(a);
+      setTrackB(b);
+    } catch (e) {
+      setTrackError(e instanceof Error ? e.message : 'Track request failed.');
+    } finally {
+      setTrackBusy(false);
+    }
+  }, [idA, idB, serverUrl, token]);
+
+  React.useEffect(() => {
+    if (showTracks) void loadTracks();
+  }, [showTracks, loadTracks]);
 
   const channels = useMemo(() => (dataA && dataB ? commonChannels(dataA.series, dataB.series) : []), [dataA, dataB]);
   const chA = useMemo(() => (dataA && channel ? sessionChannel(dataA, idA, channel) : null), [dataA, idA, channel]);
@@ -202,8 +276,30 @@ export const ComparePanel: React.FC<ComparePanelProps> = ({ token, onTokenChange
         <TermButton hotkey="V" onClick={exportCsv} disabled={!result || result.x.length === 0} title="Export axis, A, B and B-A as CSV">
           Export CSV
         </TermButton>
+        <TermButton boxed onClick={() => setShowTracks((value) => !value)} disabled={busy || !idA || !idB} title="Draw both relative tracks on one canvas">
+          {showTracks ? 'Hide tracks' : 'Tracks'}
+        </TermButton>
       </div>
       {!dist.ok && dataA && dataB && <Note className="px-[14px] pt-1 text-term-amber">Distance axis unavailable: {dist.reason}</Note>}
+
+      {showTracks && (
+        <div className="px-[14px] py-1">
+          {trackError && (
+            <Note className="text-term-amber">Track overlay unavailable: {trackError}</Note>
+          )}
+          {trackBusy && <Note className="text-term-dim">Loading both tracks...</Note>}
+          {trackA && trackB && (
+            <>
+              <div className="flex gap-[22px] pb-1">
+                <span style={{ color: pal[0] }}>A {idA}</span>
+                <span style={{ color: pal[1] }}>B {idB}</span>
+                <span className="text-term-faint">relative metres, each from its own origin</span>
+              </div>
+              <TrackOverlay a={trackA} b={trackB} colors={[pal[0], pal[1]]} />
+            </>
+          )}
+        </div>
+      )}
 
       {result ? (
         <>
