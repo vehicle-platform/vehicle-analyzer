@@ -11,6 +11,7 @@ import { HealthPanel } from './components/HealthPanel';
 import { ClusterPanel } from './components/ClusterPanel';
 import { SessionPanel } from './components/SessionPanel';
 import { ComparePanel } from './components/ComparePanel';
+import { TrackPanel } from './components/TrackPanel';
 import { ReplayItem, framesToItems, mergeSamples } from './services/replay';
 import { DEFAULT_SERVER_URL, RecordedSeries, mapSeriesKey } from './services/sessionClient';
 import { BusRole, CanFrame, CockpitTab, TelemetrySource } from './types/can';
@@ -67,6 +68,7 @@ export function App() {
   };
   const [wsSource, setWsSource] = useState<string | null>(null);
   const [serverUrl, setServerUrl] = useState<string>(DEFAULT_SERVER_URL);
+  const [recordedSessionId, setRecordedSessionId] = useState<string | null>(null);
   const [showAttitudeHud, setShowAttitudeHud] = useState<boolean>(initialLayout.hud);
   const [msgPerSec, setMsgPerSec] = useState<number>(0);
   const [sourceError, setSourceError] = useState<string | null>(null);
@@ -300,6 +302,22 @@ export function App() {
     setReplayIndex(index);
   };
 
+  /** Seek the replay transport to the frame nearest a track point time (ms). */
+  const seekToTime = (tMs: number) => {
+    if (replayFrames.length === 0) return;
+    const target = tMs / 1000;
+    let lo = 0;
+    let hi = replayFrames.length - 1;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (replayFrames[mid].t < target) lo = mid + 1;
+      else hi = mid;
+    }
+    const previous = Math.max(0, lo - 1);
+    const index = Math.abs(replayFrames[previous].t - target) <= Math.abs(replayFrames[lo].t - target) ? previous : lo;
+    seekTo(index);
+  };
+
   // ------------------------------------------------------------ 1 s sampling
 
   const isReplayingRef = useRef(isReplaying);
@@ -355,6 +373,7 @@ export function App() {
           d: () => setActiveTab('sync'),
           e: () => setActiveTab('session'),
           a: () => setActiveTab('compare'),
+          g: () => setActiveTab('track'),
           ' ': togglePause,
           c: handleClear,
           x: () => setShowAttitudeHud((v) => !v),
@@ -446,10 +465,24 @@ export function App() {
                 serverUrl={serverUrl}
                 onServerUrlChange={setServerUrl}
                 onLoad={handleSessionLoaded}
+                onSelect={setRecordedSessionId}
+                selectedSessionId={recordedSessionId}
               />
             )}
             {activeTab === 'compare' && (
               <ComparePanel token={wsToken} onTokenChange={handleTokenChange} serverUrl={serverUrl} onServerUrlChange={setServerUrl} />
+            )}
+            {activeTab === 'track' && (
+              <TrackPanel
+                key={recordedSessionId ?? 'none'}
+                token={wsToken}
+                onTokenChange={handleTokenChange}
+                serverUrl={serverUrl}
+                onServerUrlChange={setServerUrl}
+                sessionId={recordedSessionId}
+                replayTimeSec={currentReplayTime}
+                onSeekTime={seekToTime}
+              />
             )}
             {activeTab === 'sync' && <SyncPanel store={store} source={source} onLogLoaded={handleLogLoaded} />}
           </main>
@@ -517,6 +550,7 @@ const HELP: HelpGroup[] = [
       { k: 'D', label: 'Defs & logs' },
       { k: 'E', label: 'Recorded sessions' },
       { k: 'A', label: 'Compare two sessions' },
+      { k: 'G', label: 'Ride track' },
     ],
   },
   {

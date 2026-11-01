@@ -138,7 +138,7 @@ export const ComparePanel: React.FC<ComparePanelProps> = ({ token, onTokenChange
     if (!result || result.x.length === 0) return;
     downloadFile(compareToCsv(result), `vehicle-analyzer-compare-${new Date().toISOString().replace(/[:.]/g, '-')}.csv`, 'text/csv;charset=utf-8;');
   };
-  useHotkeys({ g: () => void refresh(), v: exportCsv });
+  useHotkeys({ r: () => void refresh(), v: exportCsv });
 
   const pal = scopePalette(theme);
   const sessionSelect = (label: string, value: string, onChange: (v: string) => void) => (
@@ -160,7 +160,7 @@ export const ComparePanel: React.FC<ComparePanelProps> = ({ token, onTokenChange
       <Toolbar>
         <TermInput value={serverUrl} onChange={(e) => onServerUrlChange(e.target.value)} aria-label="vehicle-server URL" spellCheck={false} className="w-64" />
         <TermInput type="password" value={token} onChange={(e) => onTokenChange(e.target.value)} placeholder="token" aria-label="vehicle-server API token" autoComplete="off" className="w-32 min-w-0" />
-        <TermButton hotkey="G" boxed onClick={() => void refresh()} disabled={busy}>
+        <TermButton hotkey="R" boxed onClick={() => void refresh()} disabled={busy}>
           Refresh
         </TermButton>
         <span className="ml-auto text-term-dim">{busy ? 'working...' : 'read-only HTTP, token in the Authorization header only'}</span>

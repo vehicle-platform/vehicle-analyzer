@@ -21,12 +21,15 @@ interface SessionPanelProps {
   onServerUrlChange: (url: string) => void;
   /** Hands the fetched series to App: 'replay' = play from the start, 'all' = push everything at once. */
   onLoad: (series: RecordedSeries[], mode: 'replay' | 'all') => void;
+  /** Reports the selected/opened session so the Track view can use it. */
+  onSelect?: (id: string | null) => void;
+  selectedSessionId?: string | null;
 }
 
 /** Browser for recorded vehicle-server sessions (read-only HTTP, token in the Authorization header only). */
-export const SessionPanel: React.FC<SessionPanelProps> = ({ token, onTokenChange, serverUrl, onServerUrlChange, onLoad }) => {
+export const SessionPanel: React.FC<SessionPanelProps> = ({ token, onTokenChange, serverUrl, onServerUrlChange, onLoad, onSelect, selectedSessionId }) => {
   const [sessions, setSessions] = useState<SessionRow[]>([]);
-  const [selected, setSelected] = useState<string | null>(null);
+  const [selected, setSelected] = useState<string | null>(selectedSessionId ?? null);
   const [report, setReport] = useState<{ key: string; value: string }[] | null>(null);
   const [status, setStatus] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
@@ -36,6 +39,10 @@ export const SessionPanel: React.FC<SessionPanelProps> = ({ token, onTokenChange
   useEffect(() => {
     saveSessionFilter(filter);
   }, [filter]);
+
+  useEffect(() => {
+    if (selectedSessionId !== undefined) setSelected(selectedSessionId);
+  }, [selectedSessionId]);
 
   const client = useMemo(() => new SessionClient(serverUrl, token), [serverUrl, token]);
   const visible = useMemo(() => filterSessions(sessions, filter), [sessions, filter]);
@@ -62,6 +69,7 @@ export const SessionPanel: React.FC<SessionPanelProps> = ({ token, onTokenChange
 
   const select = (id: string) => {
     setSelected(id);
+    onSelect?.(id);
     setReport(null);
     void run(async () => {
       setReport(summarizeReport(await client.getReport(id)));
@@ -70,6 +78,7 @@ export const SessionPanel: React.FC<SessionPanelProps> = ({ token, onTokenChange
 
   const open = (mode: 'replay' | 'all') => {
     if (!selected) return;
+    onSelect?.(selected);
     void run(async () => {
       const res = await client.getSeries(selected);
       if (res.series.length === 0) {
@@ -98,7 +107,7 @@ export const SessionPanel: React.FC<SessionPanelProps> = ({ token, onTokenChange
     const next = visible[Math.max(0, Math.min(visible.length - 1, (i < 0 ? 0 : i) + delta))];
     select(next.session_id);
   };
-  useHotkeys({ j: () => move(1), k: () => move(-1), g: () => void refresh() });
+  useHotkeys({ j: () => move(1), k: () => move(-1), r: () => void refresh() });
 
   return (
     <div className="flex h-full select-none flex-col bg-term-bg">
@@ -113,7 +122,7 @@ export const SessionPanel: React.FC<SessionPanelProps> = ({ token, onTokenChange
           autoComplete="off"
           className="w-32 min-w-0"
         />
-        <TermButton hotkey="G" boxed onClick={() => void refresh()} disabled={busy} title="Fetch the session list">
+        <TermButton hotkey="R" boxed onClick={() => void refresh()} disabled={busy} title="Fetch the session list">
           Refresh
         </TermButton>
         <span className="ml-auto text-term-dim">{busy ? 'working...' : 'read-only HTTP, token in the Authorization header only'}</span>
