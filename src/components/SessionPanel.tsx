@@ -20,7 +20,7 @@ interface SessionPanelProps {
   serverUrl: string;
   onServerUrlChange: (url: string) => void;
   /** Hands the fetched series to App: 'replay' = play from the start, 'all' = push everything at once. */
-  onLoad: (series: RecordedSeries[], mode: 'replay' | 'all') => void;
+  onLoad: (series: RecordedSeries[], mode: 'replay' | 'all', sessionId: string) => void;
   /** Reports the selected/opened session so the Track view can use it. */
   onSelect?: (id: string | null) => void;
   selectedSessionId?: string | null;
@@ -85,7 +85,7 @@ export const SessionPanel: React.FC<SessionPanelProps> = ({ token, onTokenChange
         setStatus('The session has no usable series.');
         return;
       }
-      onLoad(res.series, mode);
+      onLoad(res.series, mode, selected);
       const pts = res.series.reduce((n, s) => n + s.v.length, 0);
       setStatus(
         mode === 'replay'

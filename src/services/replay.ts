@@ -17,3 +17,10 @@ export function mergeSamples(series: { key: string; t: number[]; v: number[] }[]
   // Array.prototype.sort is stable: equal times keep the series order.
   return items.sort((a, b) => a.t - b.t);
 }
+
+/**
+ * True when the loaded replay is the recorded session the Track view shows, so its time axis
+ * (ms since the session's t0) is the replay axis. A log file or another session never matches.
+ */
+export const replayMatchesSession = (loadedSessionId: string | null, selectedSessionId: string | null, source: string): boolean =>
+  source === 'server_session' && loadedSessionId !== null && loadedSessionId === selectedSessionId;
