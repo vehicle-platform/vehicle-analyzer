@@ -298,8 +298,11 @@ describe('TrackPanel seek', () => {
 
   it('seeks to the clicked point when the replay is the same session', async () => {
     const { p, canvas } = await setup();
-    await waitFor(() => fireEvent.click(canvas, { clientX: 200, clientY: 150 }));
-    expect(p.onSeekTime).toHaveBeenCalledWith(100);
+    // The view is fitted after the first layout pass, so retry the click until it lands.
+    await waitFor(() => {
+      fireEvent.click(canvas, { clientX: 200, clientY: 150 });
+      expect(p.onSeekTime).toHaveBeenCalledWith(100);
+    });
     expect(screen.queryByText(/to sync/)).toBeNull();
   });
 
@@ -315,7 +318,9 @@ describe('TrackPanel seek', () => {
     fireEvent.pointerDown(canvas, { button: 2, clientX: 100, clientY: 100 });
     fireEvent.pointerMove(canvas, { button: 2, clientX: 160, clientY: 160 });
     fireEvent.pointerUp(canvas, { button: 2 });
-    fireEvent.click(canvas, { clientX: 200, clientY: 150 });
-    expect(p.onSeekTime).toHaveBeenCalledWith(100);
+    await waitFor(() => {
+      fireEvent.click(canvas, { clientX: 200, clientY: 150 });
+      expect(p.onSeekTime).toHaveBeenCalledWith(100);
+    });
   });
 });
