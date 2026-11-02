@@ -130,3 +130,30 @@ describe('SessionPanel filters', () => {
     expect((screen.getByLabelText('Filter sessions by id') as HTMLInputElement).value).toBe('ride-2');
   });
 });
+
+describe('SessionPanel ride summary', () => {
+  it('shows the ride summary card for the selected session', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: string | URL | Request) => {
+        const url = String(input);
+        if (url.endsWith('/sessions')) return jsonResponse([{ session_id: 'ride-1' }]);
+        if (url.endsWith('/summary')) {
+          return jsonResponse({
+            session_id: 'ride-1',
+            ride_definition: 'cl250_ride',
+            defs_version: '1.2.0',
+            signals: [{ name: 'derived.trip_distance', status: 'computed', unit: 'km', range: [0, 200], kind: 'scalar', value: 12.3, flag: 'ok' }],
+          });
+        }
+        return jsonResponse({});
+      })
+    );
+    renderPanel();
+    fireEvent.click(screen.getByRole('button', { name: /Refresh/ }));
+    fireEvent.click(await screen.findByText('ride-1'));
+
+    expect(await screen.findByText('12.30')).toBeTruthy();
+    expect(screen.getByText('ride summary')).toBeTruthy();
+  });
+});
