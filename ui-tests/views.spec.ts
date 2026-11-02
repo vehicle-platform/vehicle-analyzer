@@ -28,6 +28,7 @@ const VIEWS = [
   { key: 'd', label: 'Defs & logs', target: (page: Page) => page.getByRole('navigation', { name: 'Definitions' }) },
   { key: 'e', label: 'Sessions', target: (page: Page) => page.getByText('recorded sessions') },
   { key: 'a', label: 'Compare', target: (page: Page) => page.getByText('Pick two sessions (Refresh first) and press Compare.') },
+  { key: 'g', label: 'Ride track', target: (page: Page) => page.getByText('No recorded session selected. Pick one in Sessions (E).') },
 ];
 
 for (const view of VIEWS) {

@@ -34,7 +34,7 @@ export const DEFAULT_MAX_POINTS = 2000;
 
 const KINDS: readonly SeriesKind[] = ['did', 'sensor', 'derived'];
 
-const isRecord = (x: unknown): x is Record<string, unknown> => typeof x === 'object' && x !== null && !Array.isArray(x);
+export const isRecord = (x: unknown): x is Record<string, unknown> => typeof x === 'object' && x !== null && !Array.isArray(x);
 const isNumArray = (x: unknown): x is number[] => Array.isArray(x) && x.every((n) => typeof n === 'number' && Number.isFinite(n));
 
 /** Drops malformed series (length mismatch, non-numbers, unknown kind) instead of throwing. */
@@ -152,16 +152,23 @@ export async function describeHttpError(res: Pick<Response, 'status' | 'statusTe
   return `Server error (${res.status}${res.statusText ? ` ${res.statusText}` : ''}).`;
 }
 
-type FetchLike = (url: string, init: { headers: Record<string, string> }) => Promise<Response>;
+export type FetchLike = (url: string, init: { headers: Record<string, string> }) => Promise<Response>;
 
-async function getJson(req: BuiltRequest, fetchFn: FetchLike): Promise<unknown> {
+/**
+ * GET + JSON with the shared error mapping. `onHttpError` runs first on a non-2xx answer, so a
+ * caller can turn a specific body (e.g. a 404 detail) into its own error before the generic one.
+ */
+export async function getJson(req: BuiltRequest, fetchFn: FetchLike, onHttpError?: (res: Response) => Promise<void>): Promise<unknown> {
   let res: Response;
   try {
     res = await fetchFn(req.url, { headers: req.headers });
   } catch {
     throw new Error('Cannot reach the server (network error, wrong URL or CORS).');
   }
-  if (!res.ok) throw new Error(await describeHttpError(res));
+  if (!res.ok) {
+    await onHttpError?.(res);
+    throw new Error(await describeHttpError(res));
+  }
   try {
     return await res.json();
   } catch {

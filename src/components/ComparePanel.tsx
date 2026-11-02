@@ -1,7 +1,9 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Note, Segmented, TermButton, TermInput, Toolbar, cn } from '../ui/primitives';
 import { Empty, scopePalette } from '../ui/panel-parts';
 import { useActiveTheme } from '../ui/theme';
+import { drawTrackLayer, prepareCanvas } from '../ui/trackDraw';
+import { useDevicePixelRatio, useElementSize } from '../ui/useCanvas';
 import { useHotkeys } from '../ui/keys';
 import { SessionClient, SessionRow, SeriesResponse } from '../services/sessionClient';
 import {
@@ -16,6 +18,8 @@ import {
   valueRange,
 } from '../services/compare';
 import { downloadFile } from '../services/exportService';
+import { TrackClient, TrackResponse } from '../services/trackClient';
+import { boundsOfSegments, fitView } from '../services/trackGeometry';
 
 interface ComparePanelProps {
   token: string;
@@ -71,6 +75,31 @@ const Plot: React.FC<{
   );
 };
 
+/** Both relative tracks on one canvas; each track starts at its own (0, 0) origin. */
+const TrackOverlay: React.FC<{ a: TrackResponse; b: TrackResponse; colorA: string; colorB: string }> = ({ a, b, colorA, colorB }) => {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const size = useElementSize(canvasRef);
+  const dpr = useDevicePixelRatio();
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || !size) return;
+    const bounds = boundsOfSegments([...a.segments, ...b.segments]);
+    if (!bounds) return;
+    const prepared = prepareCanvas(canvas);
+    if (!prepared) return;
+    const view = fitView(bounds, prepared.width, prepared.height, 24);
+    drawTrackLayer(prepared.ctx, a, view, colorA);
+    drawTrackLayer(prepared.ctx, b, view, colorB);
+  }, [a, b, colorA, colorB, size, dpr]);
+
+  return (
+    <div className="relative w-full border border-term-rule" style={{ height: H_MAIN }}>
+      <canvas ref={canvasRef} role="img" aria-label="Compare relative tracks" className="absolute inset-0 h-full w-full" />
+    </div>
+  );
+};
+
 /** Compare two recorded vehicle-server sessions on a common time or distance axis (roadmap A4). */
 export const ComparePanel: React.FC<ComparePanelProps> = ({ token, onTokenChange, serverUrl, onServerUrlChange }) => {
   const theme = useActiveTheme();
@@ -84,6 +113,12 @@ export const ComparePanel: React.FC<ComparePanelProps> = ({ token, onTokenChange
   const [status, setStatus] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [showTracks, setShowTracks] = useState(false);
+  const [trackA, setTrackA] = useState<TrackResponse | null>(null);
+  const [trackB, setTrackB] = useState<TrackResponse | null>(null);
+  const [trackBusy, setTrackBusy] = useState(false);
+  const [trackError, setTrackError] = useState<string | null>(null);
+  const [trackNonce, setTrackNonce] = useState(0);
 
   const client = useMemo(() => new SessionClient(serverUrl, token), [serverUrl, token]);
 
@@ -111,6 +146,7 @@ export const ComparePanel: React.FC<ComparePanelProps> = ({ token, onTokenChange
       setDataB(b);
       const common = commonChannels(a.series, b.series);
       setChannel((c) => (common.includes(c) ? c : (common[0] ?? '')));
+      setTrackNonce((n) => n + 1);
       setStatus(`Loaded ${idA} and ${idB}: ${common.length} common channel${common.length === 1 ? '' : 's'}.`);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Request failed.');
@@ -118,6 +154,40 @@ export const ComparePanel: React.FC<ComparePanelProps> = ({ token, onTokenChange
       setBusy(false);
     }
   };
+
+  // Latest connection settings: editing the URL/token inputs must not fetch the tracks by itself.
+  const connection = useRef({ serverUrl, token });
+  connection.current = { serverUrl, token };
+
+  // Fetches on show, on a session change while shown and on Compare. A response that is no
+  // longer the latest request is dropped (the cleanup flags it).
+  useEffect(() => {
+    if (!showTracks || !idA || !idB) {
+      setTrackBusy(false);
+      return;
+    }
+    let cancelled = false;
+    setTrackBusy(true);
+    setTrackError(null);
+    setTrackA(null);
+    setTrackB(null);
+    const trackClient = new TrackClient(connection.current.serverUrl, connection.current.token);
+    Promise.all([trackClient.getTrack(idA), trackClient.getTrack(idB)])
+      .then(([a, b]) => {
+        if (cancelled) return;
+        setTrackA(a);
+        setTrackB(b);
+        setTrackBusy(false);
+      })
+      .catch((e: unknown) => {
+        if (cancelled) return;
+        setTrackError(e instanceof Error ? e.message : 'Track request failed.');
+        setTrackBusy(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [showTracks, idA, idB, trackNonce]);
 
   const channels = useMemo(() => (dataA && dataB ? commonChannels(dataA.series, dataB.series) : []), [dataA, dataB]);
   const chA = useMemo(() => (dataA && channel ? sessionChannel(dataA, idA, channel) : null), [dataA, idA, channel]);
@@ -138,7 +208,7 @@ export const ComparePanel: React.FC<ComparePanelProps> = ({ token, onTokenChange
     if (!result || result.x.length === 0) return;
     downloadFile(compareToCsv(result), `vehicle-analyzer-compare-${new Date().toISOString().replace(/[:.]/g, '-')}.csv`, 'text/csv;charset=utf-8;');
   };
-  useHotkeys({ g: () => void refresh(), v: exportCsv });
+  useHotkeys({ r: () => void refresh(), v: exportCsv });
 
   const pal = scopePalette(theme);
   const sessionSelect = (label: string, value: string, onChange: (v: string) => void) => (
@@ -160,7 +230,7 @@ export const ComparePanel: React.FC<ComparePanelProps> = ({ token, onTokenChange
       <Toolbar>
         <TermInput value={serverUrl} onChange={(e) => onServerUrlChange(e.target.value)} aria-label="vehicle-server URL" spellCheck={false} className="w-64" />
         <TermInput type="password" value={token} onChange={(e) => onTokenChange(e.target.value)} placeholder="token" aria-label="vehicle-server API token" autoComplete="off" className="w-32 min-w-0" />
-        <TermButton hotkey="G" boxed onClick={() => void refresh()} disabled={busy}>
+        <TermButton hotkey="R" boxed onClick={() => void refresh()} disabled={busy}>
           Refresh
         </TermButton>
         <span className="ml-auto text-term-dim">{busy ? 'working...' : 'read-only HTTP, token in the Authorization header only'}</span>
@@ -202,8 +272,32 @@ export const ComparePanel: React.FC<ComparePanelProps> = ({ token, onTokenChange
         <TermButton hotkey="V" onClick={exportCsv} disabled={!result || result.x.length === 0} title="Export axis, A, B and B-A as CSV">
           Export CSV
         </TermButton>
+        <TermButton boxed onClick={() => setShowTracks((value) => !value)} disabled={busy || !idA || !idB} title="Draw both relative tracks on one canvas">
+          {showTracks ? 'Hide tracks' : 'Tracks'}
+        </TermButton>
       </div>
       {!dist.ok && dataA && dataB && <Note className="px-[14px] pt-1 text-term-amber">Distance axis unavailable: {dist.reason}</Note>}
+
+      {showTracks && (
+        <div className="px-[14px] py-1">
+          {trackError && (
+            <Note className="text-term-amber">Track overlay unavailable: {trackError}</Note>
+          )}
+          {trackBusy && <Note className="text-term-dim">Loading both tracks...</Note>}
+          {trackA && trackB && (
+            <>
+              <div className="flex gap-[22px] pb-1">
+                <span style={{ color: pal[0] }}>A {idA}</span>
+                <span style={{ color: pal[1] }}>B {idB}</span>
+                <span className="text-term-faint">
+                  relative metres, each from its own origin · path A {fmt(trackA.pathLengthM)} m, B {fmt(trackB.pathLengthM)} m
+                </span>
+              </div>
+              <TrackOverlay a={trackA} b={trackB} colorA={pal[0]} colorB={pal[1]} />
+            </>
+          )}
+        </div>
+      )}
 
       {result ? (
         <>

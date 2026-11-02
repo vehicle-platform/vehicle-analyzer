@@ -11,7 +11,8 @@ import { HealthPanel } from './components/HealthPanel';
 import { ClusterPanel } from './components/ClusterPanel';
 import { SessionPanel } from './components/SessionPanel';
 import { ComparePanel } from './components/ComparePanel';
-import { ReplayItem, framesToItems, mergeSamples } from './services/replay';
+import { TrackPanel } from './components/TrackPanel';
+import { ReplayItem, framesToItems, mergeSamples, replayMatchesSession } from './services/replay';
 import { DEFAULT_SERVER_URL, RecordedSeries, mapSeriesKey } from './services/sessionClient';
 import { BusRole, CanFrame, CockpitTab, TelemetrySource } from './types/can';
 import { DEFS } from './defs';
@@ -67,6 +68,7 @@ export function App() {
   };
   const [wsSource, setWsSource] = useState<string | null>(null);
   const [serverUrl, setServerUrl] = useState<string>(DEFAULT_SERVER_URL);
+  const [recordedSessionId, setRecordedSessionId] = useState<string | null>(null);
   const [showAttitudeHud, setShowAttitudeHud] = useState<boolean>(initialLayout.hud);
   const [msgPerSec, setMsgPerSec] = useState<number>(0);
   const [sourceError, setSourceError] = useState<string | null>(null);
@@ -78,6 +80,8 @@ export function App() {
   // Time Machine replay
   const [replayFrames, setReplayFrames] = useState<ReplayItem[]>([]);
   const [replayIndex, setReplayIndex] = useState<number>(0);
+  // The recorded session the loaded replay came from (null for a log file); selecting a session does not load it.
+  const [replaySessionId, setReplaySessionId] = useState<string | null>(null);
   const [isReplaying, setIsReplaying] = useState<boolean>(false);
   const [playbackSpeed, setPlaybackSpeed] = useState<number>(1.0);
   const replayIndexRef = useRef<number>(0);
@@ -202,6 +206,7 @@ export function App() {
     store.clear();
     store.resetRecordedMeta();
     setReplayFrames(framesToItems(frames));
+    setReplaySessionId(null);
     setReplayIndex(0);
     replayIndexRef.current = 0;
     setSource('local_file');
@@ -209,7 +214,7 @@ export function App() {
   };
 
   /** Recorded session series -> replay items (or pushed at once). Display metadata goes to the store. */
-  const handleSessionLoaded = (series: RecordedSeries[], mode: 'replay' | 'all') => {
+  const handleSessionLoaded = (series: RecordedSeries[], mode: 'replay' | 'all', sessionId: string) => {
     stopLiveSources();
     setIsRunning(false);
     setIsReplaying(false);
@@ -223,6 +228,7 @@ export function App() {
       return { key: m.key, t: sr.tMs.map((ms) => ms / 1000), v: sr.v };
     });
     setSource('server_session');
+    setReplaySessionId(sessionId);
     if (mode === 'all') {
       for (const s of perKey) for (let i = 0; i < s.t.length; i++) store.ingestSample(s.key, s.t[i], s.v[i]);
       setReplayFrames([]);
@@ -300,6 +306,24 @@ export function App() {
     setReplayIndex(index);
   };
 
+  const trackReplaySynced = replayMatchesSession(replaySessionId, recordedSessionId, source);
+
+  /** Seek the replay transport to the frame nearest a track point time (ms). Only the same session shares the axis. */
+  const seekToTime = (tMs: number) => {
+    if (replayFrames.length === 0 || !trackReplaySynced) return;
+    const target = tMs / 1000;
+    let lo = 0;
+    let hi = replayFrames.length - 1;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (replayFrames[mid].t < target) lo = mid + 1;
+      else hi = mid;
+    }
+    const previous = Math.max(0, lo - 1);
+    const index = Math.abs(replayFrames[previous].t - target) <= Math.abs(replayFrames[lo].t - target) ? previous : lo;
+    seekTo(index);
+  };
+
   // ------------------------------------------------------------ 1 s sampling
 
   const isReplayingRef = useRef(isReplaying);
@@ -355,6 +379,7 @@ export function App() {
           d: () => setActiveTab('sync'),
           e: () => setActiveTab('session'),
           a: () => setActiveTab('compare'),
+          g: () => setActiveTab('track'),
           ' ': togglePause,
           c: handleClear,
           x: () => setShowAttitudeHud((v) => !v),
@@ -446,10 +471,25 @@ export function App() {
                 serverUrl={serverUrl}
                 onServerUrlChange={setServerUrl}
                 onLoad={handleSessionLoaded}
+                onSelect={setRecordedSessionId}
+                selectedSessionId={recordedSessionId}
               />
             )}
             {activeTab === 'compare' && (
               <ComparePanel token={wsToken} onTokenChange={handleTokenChange} serverUrl={serverUrl} onServerUrlChange={setServerUrl} />
+            )}
+            {activeTab === 'track' && (
+              <TrackPanel
+                key={recordedSessionId ?? 'none'}
+                token={wsToken}
+                onTokenChange={handleTokenChange}
+                serverUrl={serverUrl}
+                onServerUrlChange={setServerUrl}
+                sessionId={recordedSessionId}
+                replayTimeSec={currentReplayTime}
+                onSeekTime={seekToTime}
+                replaySynced={trackReplaySynced}
+              />
             )}
             {activeTab === 'sync' && <SyncPanel store={store} source={source} onLogLoaded={handleLogLoaded} />}
           </main>
@@ -517,6 +557,7 @@ const HELP: HelpGroup[] = [
       { k: 'D', label: 'Defs & logs' },
       { k: 'E', label: 'Recorded sessions' },
       { k: 'A', label: 'Compare two sessions' },
+      { k: 'G', label: 'Ride track' },
     ],
   },
   {

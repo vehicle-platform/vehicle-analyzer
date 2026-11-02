@@ -152,7 +152,7 @@ export const SyncPanel: React.FC<SyncPanelProps> = ({ store, source, onLogLoaded
     k: () => move(-1),
     b: () => dbcInput.current?.click(),
     r: () => store.customPlatformDbc && resetDefs(),
-    g: () => logInput.current?.click(),
+    i: () => logInput.current?.click(),
   });
 
   const rowClass = (on: boolean) => cn('flex w-full items-baseline gap-[1ch] whitespace-nowrap px-[6px] py-[3px] text-left border-b border-term-rule', on ? 'bg-term-row' : 'hover:bg-term-row');
@@ -242,7 +242,7 @@ export const SyncPanel: React.FC<SyncPanelProps> = ({ store, source, onLogLoaded
 
           <ListHead>replay a log</ListHead>
           <div className="flex flex-col items-start px-[8px] py-[6px]">
-            <TermButton hotkey="G" onClick={() => logInput.current?.click()}>
+            <TermButton hotkey="I" onClick={() => logInput.current?.click()}>
               load .asc or .csv
             </TermButton>
             <input ref={logInput} type="file" accept=".asc,.csv" onChange={handleLogUpload} className="hidden" tabIndex={-1} />

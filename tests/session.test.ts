@@ -10,7 +10,7 @@ import {
   sessionsRequest,
   summarizeReport,
 } from '../src/services/sessionClient';
-import { framesToItems, mergeSamples } from '../src/services/replay';
+import { framesToItems, mergeSamples, replayMatchesSession } from '../src/services/replay';
 import { CaptureStore } from '../src/state/captureStore';
 import { availableChannels } from '../src/state/channels';
 import { didKey } from '../src/services/pipeline';
@@ -172,5 +172,15 @@ describe('store: recorded samples', () => {
     store.ingestSample(didKey(d.name), 0, 1);
     const ch = availableChannels(store).find((c) => c.key === didKey(d.name));
     expect(ch?.unit).toBe(d.unit);
+  });
+});
+
+describe('replayMatchesSession', () => {
+  it('matches only the same recorded session replayed from the server', () => {
+    expect(replayMatchesSession('ride-1', 'ride-1', 'server_session')).toBe(true);
+    expect(replayMatchesSession('ride-1', 'ride-2', 'server_session')).toBe(false);
+    expect(replayMatchesSession(null, 'ride-1', 'server_session')).toBe(false);
+    expect(replayMatchesSession(null, null, 'server_session')).toBe(false);
+    expect(replayMatchesSession('ride-1', 'ride-1', 'local_file')).toBe(false);
   });
 });
