@@ -7,6 +7,14 @@ export function precisionForRange(range: RideSummaryRange): number {
   return Math.min(6, Math.max(0, 4 - Math.floor(Math.log10(span))));
 }
 
+/** Decimals for a binned axis, derived from its first edge min .. last edge max. */
+export function precisionForAxis(edges: RideSummaryRange[]): number {
+  const first = edges[0];
+  const last = edges[edges.length - 1];
+  if (!first || !last) return precisionForRange([0, 0]);
+  return precisionForRange([first[0], last[1]]);
+}
+
 export function formatRideValue(value: number | null, range: RideSummaryRange): string {
   if (value === null || !Number.isFinite(value)) return '–';
   return value.toFixed(precisionForRange(range));
