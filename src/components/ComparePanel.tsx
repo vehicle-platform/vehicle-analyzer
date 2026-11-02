@@ -1,15 +1,16 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Note, Segmented, TermButton, TermInput, Toolbar, cn } from '../ui/primitives';
-import { Empty, scopePalette } from '../ui/panel-parts';
+import { Empty, ListHead, TD, TH, scopePalette } from '../ui/panel-parts';
 import { useActiveTheme } from '../ui/theme';
 import { drawTrackLayer, prepareCanvas } from '../ui/trackDraw';
 import { useDevicePixelRatio, useElementSize } from '../ui/useCanvas';
 import { useHotkeys } from '../ui/keys';
-import { SessionClient, SessionRow, SeriesResponse } from '../services/sessionClient';
+import { SessionClient, SessionRow, SeriesResponse, type RideSummary } from '../services/sessionClient';
 import {
   CompareAxis,
   CompareResult,
   commonChannels,
+  compareRideSummaries,
   compareSessions,
   compareToCsv,
   distanceAvailability,
@@ -20,6 +21,7 @@ import {
 import { downloadFile } from '../services/exportService';
 import { TrackClient, TrackResponse } from '../services/trackClient';
 import { boundsOfSegments, fitView } from '../services/trackGeometry';
+import { formatRideValue } from '../services/rideSummaryLayout';
 
 interface ComparePanelProps {
   token: string;
@@ -119,6 +121,9 @@ export const ComparePanel: React.FC<ComparePanelProps> = ({ token, onTokenChange
   const [trackBusy, setTrackBusy] = useState(false);
   const [trackError, setTrackError] = useState<string | null>(null);
   const [trackNonce, setTrackNonce] = useState(0);
+  const [summaryA, setSummaryA] = useState<RideSummary | null>(null);
+  const [summaryB, setSummaryB] = useState<RideSummary | null>(null);
+  const [summaryError, setSummaryError] = useState<string | null>(null);
 
   const client = useMemo(() => new SessionClient(serverUrl, token), [serverUrl, token]);
 
@@ -140,10 +145,23 @@ export const ComparePanel: React.FC<ComparePanelProps> = ({ token, onTokenChange
     if (!idA || !idB) return;
     setBusy(true);
     setError(null);
+    setSummaryA(null);
+    setSummaryB(null);
+    setSummaryError(null);
+    const summaryOf = async (id: string): Promise<{ summary: RideSummary | null; error: string | null }> => {
+      try {
+        return { summary: await client.getRideSummary(id), error: null };
+      } catch (e) {
+        return { summary: null, error: e instanceof Error ? e.message : 'Ride summary request failed.' };
+      }
+    };
     try {
-      const [a, b] = await Promise.all([client.getSeries(idA), client.getSeries(idB)]);
+      const [a, b, sa, sb] = await Promise.all([client.getSeries(idA), client.getSeries(idB), summaryOf(idA), summaryOf(idB)]);
       setDataA(a);
       setDataB(b);
+      setSummaryA(sa.summary);
+      setSummaryB(sb.summary);
+      setSummaryError([sa.error, sb.error].filter((message): message is string => message !== null).join(' · ') || null);
       const common = commonChannels(a.series, b.series);
       setChannel((c) => (common.includes(c) ? c : (common[0] ?? '')));
       setTrackNonce((n) => n + 1);
@@ -204,9 +222,11 @@ export const ComparePanel: React.FC<ComparePanelProps> = ({ token, onTokenChange
     }
   }, [chA, chB, effectiveAxis]);
 
+  const summaryRows = useMemo(() => compareRideSummaries(summaryA, summaryB), [summaryA, summaryB]);
+
   const exportCsv = () => {
     if (!result || result.x.length === 0) return;
-    downloadFile(compareToCsv(result), `vehicle-analyzer-compare-${new Date().toISOString().replace(/[:.]/g, '-')}.csv`, 'text/csv;charset=utf-8;');
+    downloadFile(compareToCsv(result, summaryRows), `vehicle-analyzer-compare-${new Date().toISOString().replace(/[:.]/g, '-')}.csv`, 'text/csv;charset=utf-8;');
   };
   useHotkeys({ r: () => void refresh(), v: exportCsv });
 
@@ -317,6 +337,39 @@ export const ComparePanel: React.FC<ComparePanelProps> = ({ token, onTokenChange
         </>
       ) : (
         <Empty>{dataA && dataB ? 'Nothing to compare for this channel.' : 'Pick two sessions (Refresh first) and press Compare.'}</Empty>
+      )}
+
+      {summaryError && <Note className="px-[14px] py-1 text-term-amber">Ride summary unavailable: {summaryError}</Note>}
+      {summaryRows.length > 0 && (
+        <div className="border-t border-term-rule">
+          <ListHead aside={`${summaryRows.length} scalar${summaryRows.length === 1 ? '' : 's'}`}>ride summaries</ListHead>
+          <table className="w-full border-collapse" aria-label="Ride summaries A vs B">
+            <thead>
+              <tr>
+                <th className={TH}>name</th>
+                <th className={TH}>A</th>
+                <th className={TH}>B</th>
+                <th className={TH}>B − A</th>
+                <th className={TH}>unit</th>
+              </tr>
+            </thead>
+            <tbody>
+              {summaryRows.map((row) => {
+                const cell = (value: number | null, status: string) =>
+                  status === 'computed' ? formatRideValue(value, row.range) : <span className="text-term-faint">{status}</span>;
+                return (
+                  <tr key={row.name}>
+                    <td className={cn(TD, 'text-term-fg')}>{row.name}</td>
+                    <td className={cn(TD, 'text-term-hi')}>{cell(row.aValue, row.aStatus)}</td>
+                    <td className={cn(TD, 'text-term-hi')}>{cell(row.bValue, row.bStatus)}</td>
+                    <td className={cn(TD, 'text-term-dim')}>{formatRideValue(row.diff, row.range)}</td>
+                    <td className={cn(TD, 'text-term-dim')}>{row.unit}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );
