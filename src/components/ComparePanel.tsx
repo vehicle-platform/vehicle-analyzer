@@ -1,7 +1,9 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Note, Segmented, TermButton, TermInput, Toolbar, cn } from '../ui/primitives';
 import { Empty, scopePalette } from '../ui/panel-parts';
 import { useActiveTheme } from '../ui/theme';
+import { drawTrackLayer, prepareCanvas } from '../ui/trackDraw';
+import { useDevicePixelRatio, useElementSize } from '../ui/useCanvas';
 import { useHotkeys } from '../ui/keys';
 import { SessionClient, SessionRow, SeriesResponse } from '../services/sessionClient';
 import {
@@ -17,7 +19,7 @@ import {
 } from '../services/compare';
 import { downloadFile } from '../services/exportService';
 import { TrackClient, TrackResponse } from '../services/trackClient';
-import { boundsOfSegments, fitView, worldToScreen } from '../services/trackGeometry';
+import { boundsOfSegments, fitView } from '../services/trackGeometry';
 
 interface ComparePanelProps {
   token: string;
@@ -74,47 +76,27 @@ const Plot: React.FC<{
 };
 
 /** Both relative tracks on one canvas; each track starts at its own (0, 0) origin. */
-const TrackOverlay: React.FC<{ a: TrackResponse; b: TrackResponse; colors: string[] }> = ({ a, b, colors }) => {
-  const canvasRef = React.useRef<HTMLCanvasElement | null>(null);
+const TrackOverlay: React.FC<{ a: TrackResponse; b: TrackResponse; colorA: string; colorB: string }> = ({ a, b, colorA, colorB }) => {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const size = useElementSize(canvasRef);
+  const dpr = useDevicePixelRatio();
 
-  React.useEffect(() => {
+  useEffect(() => {
     const canvas = canvasRef.current;
-    const ctx = canvas?.getContext('2d');
-    if (!canvas || !ctx) return;
+    if (!canvas || !size) return;
     const bounds = boundsOfSegments([...a.segments, ...b.segments]);
     if (!bounds) return;
-    const view = fitView(bounds, canvas.width, canvas.height, 24);
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.lineWidth = 2;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    [a, b].forEach((track, index) => {
-      ctx.strokeStyle = colors[index];
-      for (const segment of track.segments) {
-        const n = Math.min(segment.xM.length, segment.yM.length);
-        if (n === 0) continue;
-        const first = worldToScreen(view, segment.xM[0], segment.yM[0]);
-        ctx.beginPath();
-        ctx.moveTo(first.x, first.y);
-        for (let i = 1; i < n; i++) {
-          const point = worldToScreen(view, segment.xM[i], segment.yM[i]);
-          ctx.lineTo(point.x, point.y);
-        }
-        ctx.stroke();
-      }
-    });
-  }, [a, b, colors]);
+    const prepared = prepareCanvas(canvas);
+    if (!prepared) return;
+    const view = fitView(bounds, prepared.width, prepared.height, 24);
+    drawTrackLayer(prepared.ctx, a, view, colorA);
+    drawTrackLayer(prepared.ctx, b, view, colorB);
+  }, [a, b, colorA, colorB, size, dpr]);
 
   return (
-    <canvas
-      ref={canvasRef}
-      width={W}
-      height={H_MAIN}
-      role="img"
-      aria-label="Compare relative tracks"
-      className="w-full border border-term-rule"
-      style={{ height: H_MAIN }}
-    />
+    <div className="relative w-full border border-term-rule" style={{ height: H_MAIN }}>
+      <canvas ref={canvasRef} role="img" aria-label="Compare relative tracks" className="absolute inset-0 h-full w-full" />
+    </div>
   );
 };
 
@@ -136,6 +118,7 @@ export const ComparePanel: React.FC<ComparePanelProps> = ({ token, onTokenChange
   const [trackB, setTrackB] = useState<TrackResponse | null>(null);
   const [trackBusy, setTrackBusy] = useState(false);
   const [trackError, setTrackError] = useState<string | null>(null);
+  const [trackNonce, setTrackNonce] = useState(0);
 
   const client = useMemo(() => new SessionClient(serverUrl, token), [serverUrl, token]);
 
@@ -163,6 +146,7 @@ export const ComparePanel: React.FC<ComparePanelProps> = ({ token, onTokenChange
       setDataB(b);
       const common = commonChannels(a.series, b.series);
       setChannel((c) => (common.includes(c) ? c : (common[0] ?? '')));
+      setTrackNonce((n) => n + 1);
       setStatus(`Loaded ${idA} and ${idB}: ${common.length} common channel${common.length === 1 ? '' : 's'}.`);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Request failed.');
@@ -171,27 +155,39 @@ export const ComparePanel: React.FC<ComparePanelProps> = ({ token, onTokenChange
     }
   };
 
-  const loadTracks = useCallback(async () => {
-    if (!idA || !idB) return;
+  // Latest connection settings: editing the URL/token inputs must not fetch the tracks by itself.
+  const connection = useRef({ serverUrl, token });
+  connection.current = { serverUrl, token };
+
+  // Fetches on show, on a session change while shown and on Compare. A response that is no
+  // longer the latest request is dropped (the cleanup flags it).
+  useEffect(() => {
+    if (!showTracks || !idA || !idB) {
+      setTrackBusy(false);
+      return;
+    }
+    let cancelled = false;
     setTrackBusy(true);
     setTrackError(null);
     setTrackA(null);
     setTrackB(null);
-    const trackClient = new TrackClient(serverUrl, token);
-    try {
-      const [a, b] = await Promise.all([trackClient.getTrack(idA), trackClient.getTrack(idB)]);
-      setTrackA(a);
-      setTrackB(b);
-    } catch (e) {
-      setTrackError(e instanceof Error ? e.message : 'Track request failed.');
-    } finally {
-      setTrackBusy(false);
-    }
-  }, [idA, idB, serverUrl, token]);
-
-  React.useEffect(() => {
-    if (showTracks) void loadTracks();
-  }, [showTracks, loadTracks]);
+    const trackClient = new TrackClient(connection.current.serverUrl, connection.current.token);
+    Promise.all([trackClient.getTrack(idA), trackClient.getTrack(idB)])
+      .then(([a, b]) => {
+        if (cancelled) return;
+        setTrackA(a);
+        setTrackB(b);
+        setTrackBusy(false);
+      })
+      .catch((e: unknown) => {
+        if (cancelled) return;
+        setTrackError(e instanceof Error ? e.message : 'Track request failed.');
+        setTrackBusy(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [showTracks, idA, idB, trackNonce]);
 
   const channels = useMemo(() => (dataA && dataB ? commonChannels(dataA.series, dataB.series) : []), [dataA, dataB]);
   const chA = useMemo(() => (dataA && channel ? sessionChannel(dataA, idA, channel) : null), [dataA, idA, channel]);
@@ -293,9 +289,11 @@ export const ComparePanel: React.FC<ComparePanelProps> = ({ token, onTokenChange
               <div className="flex gap-[22px] pb-1">
                 <span style={{ color: pal[0] }}>A {idA}</span>
                 <span style={{ color: pal[1] }}>B {idB}</span>
-                <span className="text-term-faint">relative metres, each from its own origin</span>
+                <span className="text-term-faint">
+                  relative metres, each from its own origin · path A {fmt(trackA.pathLengthM)} m, B {fmt(trackB.pathLengthM)} m
+                </span>
               </div>
-              <TrackOverlay a={trackA} b={trackB} colors={[pal[0], pal[1]]} />
+              <TrackOverlay a={trackA} b={trackB} colorA={pal[0]} colorB={pal[1]} />
             </>
           )}
         </div>
