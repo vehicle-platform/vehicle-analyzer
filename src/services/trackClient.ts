@@ -3,7 +3,7 @@
  * to the first usable GNSS sample; it never contains an absolute position.
  */
 
-import { buildRequest, describeHttpError, type BuiltRequest } from './sessionClient';
+import { buildRequest, getJson, isRecord, type BuiltRequest, type FetchLike } from './sessionClient';
 
 export type TrackMethod = 'dead_reckoning';
 export type TrackFrame = 'relative_enu_from_first_fix';
@@ -55,7 +55,6 @@ export class NoGpsInSessionError extends Error {
   }
 }
 
-const isRecord = (x: unknown): x is Record<string, unknown> => typeof x === 'object' && x !== null && !Array.isArray(x);
 const finiteNumber = (x: unknown): x is number => typeof x === 'number' && Number.isFinite(x);
 const finiteArray = (x: unknown): x is number[] => Array.isArray(x) && x.every(finiteNumber);
 const malformed = (why: string): never => {
@@ -165,8 +164,6 @@ export function parseTrackResponse(json: unknown): TrackResponse {
   };
 }
 
-type FetchLike = (url: string, init: { headers: Record<string, string> }) => Promise<Response>;
-
 async function readDetail(res: Response): Promise<string> {
   try {
     const body = JSON.parse(await res.text()) as unknown;
@@ -185,25 +182,10 @@ export class TrackClient {
 
   public async getTrack(id: string, q: TrackQuery = {}): Promise<TrackResponse> {
     const request = trackRequest(this.baseUrl, this.token, id, q);
-    let res: Response;
-    try {
-      res = await this.fetchFn(request.url, { headers: request.headers });
-    } catch {
-      throw new Error('Cannot reach the server (network error, wrong URL or CORS).');
-    }
-    if (!res.ok) {
-      if (res.status === 404) {
-        const detail = await readDetail(res);
-        if (detail === 'session has no GPS') throw new NoGpsInSessionError();
-      }
-      throw new Error(await describeHttpError(res));
-    }
-    let json: unknown;
-    try {
-      json = await res.json();
-    } catch {
-      throw new Error('The server answered with something that is not JSON.');
-    }
-    return parseTrackResponse(json);
+    return parseTrackResponse(
+      await getJson(request, this.fetchFn, async (res) => {
+        if (res.status === 404 && (await readDetail(res)) === 'session has no GPS') throw new NoGpsInSessionError();
+      })
+    );
   }
 }

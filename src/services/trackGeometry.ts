@@ -94,7 +94,7 @@ export function boundsOfSegments(segments: readonly TrackSegmentLike[]): TrackBo
 export function fitView(bounds: TrackBounds, width: number, height: number, padding = 24): TrackView {
   const w = Math.max(1, width);
   const h = Math.max(1, height);
-  const pad = clamp(finite(padding) ? padding : 0, 0, Math.min(w, h) / 2 - 0.5);
+  const pad = clamp(finite(padding) ? padding : 0, 0, Math.max(0, Math.min(w, h) / 2 - 0.5));
   const availW = Math.max(1, w - 2 * pad);
   const availH = Math.max(1, h - 2 * pad);
   const spanX = Math.max(0, bounds.maxX - bounds.minX);

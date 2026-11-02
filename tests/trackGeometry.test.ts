@@ -18,6 +18,13 @@ import {
 const segment = (tMs: number[], xM: number[], yM: number[]) => ({ tMs, xM, yM });
 
 describe('fitView', () => {
+  it('never uses a negative padding on a canvas under one pixel', () => {
+    const view = fitView({ minX: 0, minY: 0, maxX: 10, maxY: 10 }, 0.2, 0.2, 24);
+    expect(Number.isFinite(view.scale)).toBe(true);
+    expect(view.scale).toBeGreaterThan(0);
+    expect(worldToScreen(view, 5, 5)).toEqual({ x: 0.5, y: 0.5 });
+  });
+
   it('preserves the aspect ratio, flips y (north up) and centres', () => {
     const view = fitView({ minX: 0, minY: 0, maxX: 100, maxY: 50 }, 200, 200, 0);
     expect(view.scale).toBe(2);
