@@ -73,6 +73,11 @@ describe('parseTrackResponse', () => {
     expect(track.segments[0].colorV).toBeNull();
   });
 
+  it('accepts a colour series without a unit', () => {
+    const track = parseTrackResponse({ ...good, color: { name: 'sensor.lean_angle', unit: null } });
+    expect(track.color).toEqual({ name: 'sensor.lean_angle', unit: null });
+  });
+
   it('rejects inconsistent or non-finite data', () => {
     const bad = (patch: Record<string, unknown>) => () => parseTrackResponse({ ...good, ...patch });
     expect(bad({ method: 'gps' })).toThrow(/method/);

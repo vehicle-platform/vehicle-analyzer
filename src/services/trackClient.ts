@@ -21,7 +21,7 @@ export interface TrackSegment {
 
 export interface TrackColor {
   name: string;
-  unit: string;
+  unit: string | null;
 }
 
 export interface TrackResponse {
@@ -89,10 +89,15 @@ export function parseTrackResponse(json: unknown): TrackResponse {
 
   let color: TrackColor | null = null;
   if (json.color !== null) {
-    if (!isRecord(json.color) || typeof json.color.name !== 'string' || json.color.name === '' || typeof json.color.unit !== 'string') {
+    if (
+      !isRecord(json.color) ||
+      typeof json.color.name !== 'string' ||
+      json.color.name === '' ||
+      (typeof json.color.unit !== 'string' && json.color.unit !== null)
+    ) {
       return malformed('color is neither null nor {name, unit}');
     }
-    color = { name: json.color.name, unit: json.color.unit };
+    color = { name: json.color.name, unit: json.color.unit as string | null };
   }
 
   if (!Array.isArray(json.segments)) return malformed('segments is not a list');

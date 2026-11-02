@@ -339,7 +339,7 @@ export const TrackPanel: React.FC<TrackPanelProps> = ({
 
   const colorOptions = ['', ...seriesNames];
   const legendName = track?.color?.name ?? 'speed';
-  const legendUnit = track?.color?.unit ?? 'm/s';
+  const legendUnit = track?.color ? (track.color.unit ?? '-') : 'm/s';
   const legendScale = useMemo(() => (track ? colorScale(valuesForColor(track), 16) : null), [track]);
 
   if (!serverUrl.trim()) {
