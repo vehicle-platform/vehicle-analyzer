@@ -3,6 +3,7 @@ import { Note, Segmented, TermButton, TermInput, Toolbar, cn } from '../ui/primi
 import { Empty, GutterMark, ListHead } from '../ui/panel-parts';
 import { useHotkeys } from '../ui/keys';
 import { RecordedSeries, SessionClient, SessionRow, sessionRowInfo, summarizeReport } from '../services/sessionClient';
+import { RideSummary } from './RideSummary';
 import {
   SessionFilter,
   SessionSort,
@@ -244,6 +245,8 @@ export const SessionPanel: React.FC<SessionPanelProps> = ({ token, onTokenChange
                   ))}
                 </dl>
               )}
+              <ListHead>ride summary</ListHead>
+              <RideSummary token={token} serverUrl={serverUrl} sessionId={selected} />
             </>
           ) : (
             <Empty>Select a session.</Empty>

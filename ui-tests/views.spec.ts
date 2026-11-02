@@ -29,6 +29,7 @@ const VIEWS = [
   { key: 'e', label: 'Sessions', target: (page: Page) => page.getByText('recorded sessions') },
   { key: 'a', label: 'Compare', target: (page: Page) => page.getByText('Pick two sessions (Refresh first) and press Compare.') },
   { key: 'g', label: 'Ride track', target: (page: Page) => page.getByText('No recorded session selected. Pick one in Sessions (E).') },
+  { key: 'n', label: 'Ride history', target: (page: Page) => page.getByText(/Refresh to load the ride table/) },
 ];
 
 for (const view of VIEWS) {

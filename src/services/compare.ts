@@ -1,4 +1,4 @@
-import type { RecordedSeries, SeriesResponse } from './sessionClient';
+import type { RecordedSeries, RideSummary, RideSummaryRange, SeriesResponse } from './sessionClient';
 
 /**
  * Session comparison (roadmap A4): two recorded vehicle-server sessions on a common time or
@@ -218,6 +218,62 @@ export function compareSessions(
   return { ...base, x, a: ra, b: rb, diff };
 }
 
+
+export interface RideSummaryCompareRow {
+  name: string;
+  unit: string;
+  range: RideSummaryRange;
+  aStatus: string;
+  bStatus: string;
+  aValue: number | null;
+  bValue: number | null;
+  diff: number | null;
+}
+
+const scalarValue = (signal: RideSummary['signals'][number]): number | null =>
+  signal.status === 'computed' && signal.kind === 'scalar' ? signal.value : null;
+
+const scalarRange = (signal: RideSummary['signals'][number]): RideSummaryRange | null =>
+  signal.status === 'computed' && signal.kind === 'scalar' ? signal.range : null;
+
+const scalarUnit = (signal: RideSummary['signals'][number]): string =>
+  signal.status === 'computed' && signal.kind === 'scalar' ? signal.unit : '';
+
+/** Scalar summary rows present in both sessions; statuses replace values where not computed. */
+export function compareRideSummaries(a: RideSummary | null, b: RideSummary | null): RideSummaryCompareRow[] {
+  if (!a || !b) return [];
+  const byName = new Map(b.signals.map((signal) => [signal.name, signal]));
+  const rows: RideSummaryCompareRow[] = [];
+  for (const signalA of a.signals) {
+    const signalB = byName.get(signalA.name);
+    if (!signalB) continue;
+    if (signalA.status === 'computed' && signalA.kind === 'binned') continue;
+    if (signalB.status === 'computed' && signalB.kind === 'binned') continue;
+    const rangeA = scalarRange(signalA);
+    const rangeB = scalarRange(signalB);
+    const ranges = [rangeA, rangeB].filter((range): range is RideSummaryRange => range !== null);
+    const range: RideSummaryRange = ranges.length
+      ? [Math.min(...ranges.map((r) => r[0])), Math.max(...ranges.map((r) => r[1]))]
+      : [0, 1];
+    const unitA = scalarUnit(signalA);
+    const unitB = scalarUnit(signalB);
+    const unit = unitA && unitB && unitA !== unitB ? `${unitA} / ${unitB}` : unitA || unitB;
+    const aValue = scalarValue(signalA);
+    const bValue = scalarValue(signalB);
+    rows.push({
+      name: signalA.name,
+      unit,
+      range,
+      aStatus: signalA.status,
+      bStatus: signalB.status,
+      aValue,
+      bValue,
+      diff: aValue !== null && bValue !== null ? bValue - aValue : null,
+    });
+  }
+  return rows;
+}
+
 // ------------------------------------------------------------------ export and drawing
 
 const num = (n: number | null): string => (n === null ? '' : String(Number(n.toFixed(6))));
@@ -227,11 +283,18 @@ const oneLine = (s: string): string => s.replace(/[\r\n]+/g, ' ');
  * CSV of a comparison: one `#` comment line (session ids, channel, unit, axis), then
  * `axis,A,B,B_minus_A`. Null values are empty cells. Session ids only, never a position.
  */
-export function compareToCsv(r: CompareResult): string {
+export function compareToCsv(r: CompareResult, summaries: RideSummaryCompareRow[] = []): string {
   if (isPositionChannel(r.channel)) throw new Error('Position channels are never compared or exported.');
   const axisName = r.axis === 'time' ? 'time (s since session start)' : 'distance (km, derived.trip_distance)';
   const lines = [`# A=${oneLine(r.sessionA)}; B=${oneLine(r.sessionB)}; channel=${oneLine(r.channel)}; unit=${oneLine(r.unit)}; axis=${axisName}`, 'axis,A,B,B_minus_A'];
   for (let i = 0; i < r.x.length; i++) lines.push([num(r.x[i]), num(r.a[i]), num(r.b[i]), num(r.diff[i])].join(','));
+  if (summaries.length > 0) {
+    lines.push(`# ride summaries; A=${oneLine(r.sessionA)}; B=${oneLine(r.sessionB)}`, 'name,A,B,B_minus_A,unit');
+    const cell = (value: number | null, status: string): string => (value !== null ? num(value) : status === 'computed' ? '' : oneLine(status));
+    for (const row of summaries) {
+      lines.push([oneLine(row.name), cell(row.aValue, row.aStatus), cell(row.bValue, row.bStatus), num(row.diff), oneLine(row.unit)].join(','));
+    }
+  }
   return lines.join('\n') + '\n';
 }
 

@@ -41,7 +41,61 @@ describe('ComparePanel', () => {
 
     expect(await screen.findByText(/difference B/)).toBeTruthy();
     expect(screen.getAllByRole('img')).toHaveLength(2);
-    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(fetchMock).toHaveBeenCalledTimes(5);
+  });
+
+  it('shows an A vs B ride-summary table and statuses for non-computed rows', async () => {
+    const did = DEFS.vehicle.dids[0];
+    const series = (values: number[]) => ({
+      session_id: 'session',
+      max_points: 2000,
+      series: [{ name: `did.${did.name}`, kind: 'did', unit: did.unit, t_ms: [0, 1000], v: values }],
+    });
+    const summary = (sessionId: string, distance: number | null, distanceStatus = 'computed', idleStatus = 'computed') => ({
+      session_id: sessionId,
+      ride_definition: 'cl250_ride',
+      defs_version: '1.2.0',
+      signals: [
+        {
+          name: 'derived.trip_distance',
+          status: distanceStatus,
+          ...(distanceStatus === 'computed'
+            ? { unit: 'km', range: [0, 200], kind: 'scalar', value: distance, flag: null }
+            : { reason: 'ride too short' }),
+        },
+        {
+          name: 'derived.idle_time',
+          status: idleStatus,
+          ...(idleStatus === 'computed'
+            ? { unit: 's', range: [0, 200], kind: 'scalar', value: 5, flag: null }
+            : { reason: 'ride too short' }),
+        },
+      ],
+    });
+    const fetchMock = vi.fn(async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url.endsWith('/sessions')) return jsonResponse([{ session_id: 'A' }, { session_id: 'B' }]);
+      if (url.includes('/sessions/A/series')) return jsonResponse(series([1, 2]));
+      if (url.includes('/sessions/B/series')) return jsonResponse(series([2, 3]));
+      if (url.includes('/sessions/A/summary')) return jsonResponse(summary('A', 12.3));
+      if (url.includes('/sessions/B/summary')) return jsonResponse(summary('B', 10, 'computed', 'not_ready'));
+      return jsonResponse({});
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<ComparePanel token="" onTokenChange={vi.fn()} serverUrl="http://localhost:8000" onServerUrlChange={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: /Refresh/ }));
+    await screen.findByText('2 sessions on the server.');
+    fireEvent.change(screen.getByLabelText('Session A'), { target: { value: 'A' } });
+    fireEvent.change(screen.getByLabelText('Session B'), { target: { value: 'B' } });
+    fireEvent.click(screen.getByRole('button', { name: /Compare/ }));
+
+    expect(await screen.findByRole('table', { name: 'Ride summaries A vs B' })).toBeTruthy();
+    const table = screen.getByRole('table', { name: 'Ride summaries A vs B' });
+    expect(table.textContent).toContain('derived.trip_distance');
+    expect(table.textContent).toContain('12.30');
+    expect(table.textContent).toContain('not_ready');
+    expect(table.textContent).toContain('-2.30');
   });
 });
 

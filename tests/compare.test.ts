@@ -4,6 +4,7 @@ import {
   SessionChannel,
   cleanSeries,
   commonChannels,
+  compareRideSummaries,
   compareSessions,
   compareToCsv,
   distanceAvailability,
@@ -14,7 +15,7 @@ import {
   sessionChannel,
   valueRange,
 } from '../src/services/compare';
-import { parseSeriesResponse } from '../src/services/sessionClient';
+import { parseSeriesResponse, type RideSummary } from '../src/services/sessionClient';
 
 const ch = (id: string, tMs: number[], v: number[], extra: Partial<SessionChannel> = {}): SessionChannel => ({
   sessionId: id,
@@ -157,6 +158,45 @@ describe('commonChannels', () => {
   });
 });
 
+describe('compareRideSummaries', () => {
+  const summary = (sessionId: string, signals: RideSummary['signals']): RideSummary => ({
+    sessionId,
+    rideDefinition: null,
+    defsVersion: null,
+    signals,
+  });
+  const a = summary('A', [
+    { name: 'derived.trip_distance', status: 'computed', kind: 'scalar', unit: 'km', range: [0, 200], value: 12.3, flag: null },
+    { name: 'derived.idle_time', status: 'not_ready', reason: 'ride too short' },
+    {
+      name: 'derived.operating_point_time',
+      status: 'computed',
+      kind: 'binned',
+      unit: 's',
+      range: [0, 200],
+      axes: [{ input: 'derived.speed_kmh', unit: 'km/h', edges: [[0, 30]] }],
+      cells: [],
+      totalS: 1,
+      outsideS: 0,
+      defsMismatch: false,
+    },
+  ]);
+  const b = summary('B', [
+    { name: 'derived.trip_distance', status: 'computed', kind: 'scalar', unit: 'km', range: [0, 200], value: 10, flag: null },
+    { name: 'derived.idle_time', status: 'computed', kind: 'scalar', unit: 's', range: [0, 200], value: 5, flag: null },
+    { name: 'only.b', status: 'computed', kind: 'scalar', unit: 'x', range: [0, 1], value: 1, flag: null },
+  ]);
+
+  it('keeps scalar rows present in both sessions and uses status where not computed', () => {
+    const rows = compareRideSummaries(a, b);
+    expect(rows.map((row) => row.name)).toEqual(['derived.trip_distance', 'derived.idle_time']);
+    expect(rows[0]).toMatchObject({ aValue: 12.3, bValue: 10, unit: 'km' });
+    expect(rows[0].diff).toBeCloseTo(-2.3);
+    expect(rows[1]).toMatchObject({ aStatus: 'not_ready', bStatus: 'computed', aValue: null, bValue: 5, diff: null });
+    expect(compareRideSummaries(null, b)).toEqual([]);
+  });
+});
+
 describe('compareToCsv', () => {
   it('writes a comment line, the header and empty cells for nulls', () => {
     const a = ch('ride-1', [0, 1000, 2000, 3000, 20000, 21000], [0, 1, 2, 3, 20, 21]);
@@ -173,6 +213,18 @@ describe('compareToCsv', () => {
   it('keeps the header on one line', () => {
     const r = compareSessions(ch('a\nb', [0, 1000], [1, 2]), ch('c', [0, 1000], [1, 2]), 'time', 2);
     expect(compareToCsv(r).split('\n')[0]).toContain('A=a b;');
+  });
+  it('appends a second ride-summary block with statuses in place of missing numbers', () => {
+    const r = compareSessions(ch('A', [0, 1000], [1, 2]), ch('B', [0, 1000], [2, 3]), 'time', 2);
+    const csv = compareToCsv(r, [
+      { name: 'derived.trip_distance', unit: 'km', range: [0, 200], aStatus: 'computed', bStatus: 'computed', aValue: 12.3, bValue: 10, diff: -2.3 },
+      { name: 'derived.idle_time', unit: 's', range: [0, 200], aStatus: 'not_ready', bStatus: 'computed', aValue: null, bValue: 5, diff: null },
+    ]);
+    const lines = csv.trimEnd().split('\n');
+    expect(lines).toContain('# ride summaries; A=A; B=B');
+    expect(lines).toContain('name,A,B,B_minus_A,unit');
+    expect(lines).toContain('derived.trip_distance,12.3,10,-2.3,km');
+    expect(lines).toContain('derived.idle_time,not_ready,5,,s');
   });
 });
 

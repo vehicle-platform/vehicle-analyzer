@@ -12,6 +12,7 @@ import { ClusterPanel } from './components/ClusterPanel';
 import { SessionPanel } from './components/SessionPanel';
 import { ComparePanel } from './components/ComparePanel';
 import { TrackPanel } from './components/TrackPanel';
+import { RideHistoryPanel } from './components/RideHistoryPanel';
 import { ReplayItem, framesToItems, mergeSamples, replayMatchesSession } from './services/replay';
 import { DEFAULT_SERVER_URL, RecordedSeries, mapSeriesKey } from './services/sessionClient';
 import { BusRole, CanFrame, CockpitTab, TelemetrySource } from './types/can';
@@ -307,6 +308,10 @@ export function App() {
   };
 
   const trackReplaySynced = replayMatchesSession(replaySessionId, recordedSessionId, source);
+  const openRecordedSession = (sessionId: string) => {
+    setRecordedSessionId(sessionId);
+    setActiveTab('session');
+  };
 
   /** Seek the replay transport to the frame nearest a track point time (ms). Only the same session shares the axis. */
   const seekToTime = (tMs: number) => {
@@ -380,6 +385,7 @@ export function App() {
           e: () => setActiveTab('session'),
           a: () => setActiveTab('compare'),
           g: () => setActiveTab('track'),
+          n: () => setActiveTab('rides'),
           ' ': togglePause,
           c: handleClear,
           x: () => setShowAttitudeHud((v) => !v),
@@ -491,6 +497,15 @@ export function App() {
                 replaySynced={trackReplaySynced}
               />
             )}
+            {activeTab === 'rides' && (
+              <RideHistoryPanel
+                token={wsToken}
+                onTokenChange={handleTokenChange}
+                serverUrl={serverUrl}
+                onServerUrlChange={setServerUrl}
+                onOpenSession={openRecordedSession}
+              />
+            )}
             {activeTab === 'sync' && <SyncPanel store={store} source={source} onLogLoaded={handleLogLoaded} />}
           </main>
 
@@ -527,6 +542,7 @@ export function App() {
             { k: 'C', label: 'Clear' },
             { k: 'X', label: 'HUD' },
             { k: 'L', label: theme === 'dark' ? 'Light' : 'Dark' },
+            { k: 'N', label: 'Ride history' },
           ]}
           status={
             <>
@@ -558,6 +574,7 @@ const HELP: HelpGroup[] = [
       { k: 'E', label: 'Recorded sessions' },
       { k: 'A', label: 'Compare two sessions' },
       { k: 'G', label: 'Ride track' },
+      { k: 'N', label: 'Ride history' },
     ],
   },
   {
