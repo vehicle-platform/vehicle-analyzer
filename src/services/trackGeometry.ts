@@ -110,6 +110,11 @@ export function fitView(bounds: TrackBounds, width: number, height: number, padd
   return { scale, tx: w / 2 - cx * scale, ty: h / 2 + cy * scale };
 }
 
+/** The canvas changed size: keep the scale and the world point at the canvas centre. */
+export function resizeView(view: TrackView, oldWidth: number, oldHeight: number, newWidth: number, newHeight: number): TrackView {
+  return { scale: view.scale, tx: view.tx + (newWidth - oldWidth) / 2, ty: view.ty + (newHeight - oldHeight) / 2 };
+}
+
 export function worldToScreen(view: TrackView, x: number, y: number): ScreenPoint {
   return { x: x * view.scale + view.tx, y: -y * view.scale + view.ty };
 }

@@ -2,6 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { TrackPanel } from '../../src/components/TrackPanel';
+import { setThemeColors } from './helpers';
 
 const TRACK = {
   session_id: 'ride-1',
@@ -177,5 +178,144 @@ describe('TrackPanel loaded state', () => {
     await waitFor(() => expect(screen.getByLabelText('Colour legend').textContent).toContain('sensor.lean_angle'));
     expect(screen.getByLabelText('Colour legend').textContent).toContain('deg');
     expect(fetchMock.mock.calls.some(([url]) => String(url).includes('color=sensor.lean_angle'))).toBe(true);
+  });
+});
+
+/** Recording 2D context + a 400x300 canvas box, so the panel draws and hit-tests in jsdom. */
+const stubDrawing = () => {
+  vi.stubGlobal(
+    'Path2D',
+    class {
+      moveTo() {}
+      lineTo() {}
+    }
+  );
+  const fillRect = vi.fn();
+  const noop = vi.fn();
+  const ctx = {
+    setTransform: noop,
+    clearRect: noop,
+    stroke: noop,
+    beginPath: noop,
+    arc: noop,
+    fill: noop,
+    moveTo: noop,
+    lineTo: noop,
+    fillText: noop,
+    fillRect,
+  } as unknown as CanvasRenderingContext2D;
+  vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(ctx);
+  vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+    width: 400,
+    height: 300,
+    top: 0,
+    left: 0,
+    right: 400,
+    bottom: 300,
+    x: 0,
+    y: 0,
+    toJSON: () => ({}),
+  } as DOMRect);
+  return { fillRect, lastEnd: () => fillRect.mock.calls[fillRect.mock.calls.length - 1] as number[] };
+};
+
+const trackCalls = (fetchMock: ReturnType<typeof vi.fn>) => fetchMock.mock.calls.filter(([url]) => String(url).includes('/track'));
+const LOADED = 'Dead-reckoned from GNSS speed and heading. Approximate shape, not a map.';
+
+describe('TrackPanel connection inputs', () => {
+  it('does not fetch while the URL or token is edited, only on Refresh', async () => {
+    const fetchMock = vi.fn(async (input: string | URL | Request) => (String(input).includes('/track') ? ok(TRACK) : ok(SERIES)));
+    vi.stubGlobal('fetch', fetchMock);
+    const { rerender } = render(<TrackPanel {...props()} />);
+    await screen.findByText(LOADED);
+    const before = fetchMock.mock.calls.length;
+
+    rerender(<TrackPanel {...props({ serverUrl: 'http://localhost:800' })} />);
+    rerender(<TrackPanel {...props({ serverUrl: 'http://localhost:8001', token: 'ab' })} />);
+    await new Promise((r) => setTimeout(r, 20));
+    expect(fetchMock.mock.calls.length).toBe(before);
+    expect(screen.getByText(LOADED)).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: /Refresh/ }));
+    await waitFor(() => expect(trackCalls(fetchMock).length).toBe(2));
+    expect(String(trackCalls(fetchMock)[1][0]).startsWith('http://localhost:8001/sessions/ride-1/track')).toBe(true);
+  });
+});
+
+describe('TrackPanel view', () => {
+  beforeEach(() => setThemeColors());
+
+  it('keeps the track and the zoom while a colour refetch runs', async () => {
+    const { lastEnd } = stubDrawing();
+    let release: (r: Response) => void = () => {};
+    const fetchMock = vi.fn(async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url.includes('color=')) return new Promise<Response>((resolve) => (release = resolve));
+      return ok(url.includes('/track') ? TRACK : SERIES);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    render(<TrackPanel {...props()} />);
+    await screen.findByText(LOADED);
+    await waitFor(() => expect(screen.getByRole('option', { name: 'sensor.lean_angle' })).toBeTruthy());
+    const canvas = screen.getByRole('img', { name: 'Relative ride track' });
+    const fitted = lastEnd();
+
+    fireEvent.wheel(canvas, { deltaY: -100, clientX: 40, clientY: 40 });
+    await waitFor(() => expect(lastEnd()).not.toEqual(fitted));
+    const zoomed = lastEnd();
+
+    fireEvent.change(screen.getByLabelText('Track colour'), { target: { value: 'sensor.lean_angle' } });
+    expect(await screen.findByText('loading track...')).toBeTruthy();
+    expect(screen.getByRole('img', { name: 'Relative ride track' })).toBe(canvas);
+
+    release(ok({ ...TRACK, color: { name: 'sensor.lean_angle', unit: 'deg' }, segments: [{ ...TRACK.segments[0], color_v: [1, 2, null] }] }));
+    await waitFor(() => expect(screen.getByLabelText('Colour legend').textContent).toContain('sensor.lean_angle'));
+    expect(lastEnd()).toEqual(zoomed);
+  });
+
+  it('registers a non-passive native wheel listener that prevents the page scroll', async () => {
+    stubDrawing();
+    const add = vi.spyOn(HTMLCanvasElement.prototype, 'addEventListener');
+    vi.stubGlobal('fetch', vi.fn(async (input: string | URL | Request) => ok(String(input).includes('/track') ? TRACK : SERIES)));
+    render(<TrackPanel {...props()} />);
+    await screen.findByText(LOADED);
+    expect(add.mock.calls.some(([type, , options]) => type === 'wheel' && (options as AddEventListenerOptions)?.passive === false)).toBe(true);
+    const canvas = screen.getByRole('img', { name: 'Relative ride track' });
+    expect(fireEvent.wheel(canvas, { deltaY: -100 })).toBe(false);
+  });
+});
+
+describe('TrackPanel seek', () => {
+  const setup = async (over: Partial<React.ComponentProps<typeof TrackPanel>> = {}) => {
+    stubDrawing();
+    setThemeColors();
+    vi.stubGlobal('fetch', vi.fn(async (input: string | URL | Request) => ok(String(input).includes('/track') ? TRACK : SERIES)));
+    const p = props(over);
+    render(<TrackPanel {...p} />);
+    await screen.findByText(LOADED);
+    return { p, canvas: screen.getByRole('img', { name: 'Relative ride track' }) };
+  };
+
+  it('seeks to the clicked point when the replay is the same session', async () => {
+    const { p, canvas } = await setup();
+    await waitFor(() => fireEvent.click(canvas, { clientX: 200, clientY: 150 }));
+    expect(p.onSeekTime).toHaveBeenCalledWith(100);
+    expect(screen.queryByText(/to sync/)).toBeNull();
+  });
+
+  it('does not seek and shows a hint when the replay is another session or a log', async () => {
+    const { p, canvas } = await setup({ replaySynced: false });
+    fireEvent.click(canvas, { clientX: 200, clientY: 150 });
+    expect(p.onSeekTime).not.toHaveBeenCalled();
+    expect(screen.getByText('Open this session in Recorded sessions (E) to sync.')).toBeTruthy();
+  });
+
+  it('pans only with the primary button', async () => {
+    const { p, canvas } = await setup();
+    fireEvent.pointerDown(canvas, { button: 2, clientX: 100, clientY: 100 });
+    fireEvent.pointerMove(canvas, { button: 2, clientX: 160, clientY: 160 });
+    fireEvent.pointerUp(canvas, { button: 2 });
+    fireEvent.click(canvas, { clientX: 200, clientY: 150 });
+    expect(p.onSeekTime).toHaveBeenCalledWith(100);
   });
 });

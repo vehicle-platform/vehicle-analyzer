@@ -9,6 +9,7 @@ import {
   nearestByScreen,
   nearestByTime,
   panView,
+  resizeView,
   scaleBar,
   screenToWorld,
   worldToScreen,
@@ -157,5 +158,17 @@ describe('scaleBar', () => {
     expect(formatDistance(0.1)).toBe('0.1 m');
     expect(formatDistance(250)).toBe('250 m');
     expect(formatDistance(1000)).toBe('1 km');
+  });
+});
+
+describe('resizeView', () => {
+  it('keeps the scale and the world point at the canvas centre', () => {
+    const view = zoomAt(fitView({ minX: 0, minY: 0, maxX: 100, maxY: 50 }, 200, 200, 0), 30, 40, 3);
+    const centre = screenToWorld(view, 100, 100);
+    const resized = resizeView(view, 200, 200, 300, 120);
+    expect(resized.scale).toBe(view.scale);
+    const after = screenToWorld(resized, 150, 60);
+    expect(after.x).toBeCloseTo(centre.x);
+    expect(after.y).toBeCloseTo(centre.y);
   });
 });
