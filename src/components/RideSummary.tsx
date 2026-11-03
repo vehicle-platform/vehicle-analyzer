@@ -15,6 +15,7 @@ import {
   formatRideValue,
   heatOpacity,
   maxCellValue,
+  precisionForAxis,
 } from '../services/rideSummaryLayout';
 
 interface RideSummaryProps {
@@ -37,13 +38,14 @@ const unavailableDetail = (signal: RideSummaryUnavailable): string => {
   return parts.filter((part): part is string => typeof part === 'string' && part !== '').join(' · ');
 };
 
-const edgeText = (edge: [number, number], range: [number, number]): string =>
-  `${formatRideValue(edge[0], range)}–${formatRideValue(edge[1], range)}`;
+const edgeText = (edge: [number, number], precision: number): string =>
+  `${edge[0].toFixed(precision)}–${edge[1].toFixed(precision)}`;
 
 const BinnedChart: React.FC<{ signal: RideSummaryBinned }> = ({ signal }) => {
   const range = signal.range;
   if (signal.axes.length === 1) {
     const axis = signal.axes[0];
+    const edgePrecision = precisionForAxis(axis.edges);
     const values = axis.edges.map((_, index) => cellAt(signal, [index])?.value ?? null);
     const bars = barRects(values, 320, 56, 3);
     return (
@@ -55,15 +57,15 @@ const BinnedChart: React.FC<{ signal: RideSummaryBinned }> = ({ signal }) => {
           {bars.map((bar) => (
             <rect key={bar.index} x={bar.x} y={bar.y} width={bar.width} height={bar.height} className="fill-current text-term-amber">
               <title>
-                {edgeText(axis.edges[bar.index], range)} {axis.unit}: {formatRideValue(bar.value, range)}
+                {edgeText(axis.edges[bar.index], edgePrecision)} {axis.unit}: {formatRideValue(bar.value, range)}
               </title>
             </rect>
           ))}
         </svg>
         <div className="flex text-[10px] text-term-faint">
           {axis.edges.map((edge, index) => (
-            <span key={index} className="min-w-0 flex-1 truncate text-center" title={`${edgeText(edge, range)} ${axis.unit}`}>
-              {edgeText(edge, range)}
+            <span key={index} className="min-w-0 flex-1 truncate text-center" title={`${edgeText(edge, edgePrecision)} ${axis.unit}`}>
+              {edgeText(edge, edgePrecision)}
             </span>
           ))}
         </div>
@@ -72,6 +74,8 @@ const BinnedChart: React.FC<{ signal: RideSummaryBinned }> = ({ signal }) => {
   }
 
   const [vertical, horizontal] = signal.axes;
+  const verticalPrecision = precisionForAxis(vertical.edges);
+  const horizontalPrecision = precisionForAxis(horizontal.edges);
   const max = maxCellValue(signal);
   return (
     <div className="max-w-[440px]">
@@ -86,14 +90,14 @@ const BinnedChart: React.FC<{ signal: RideSummaryBinned }> = ({ signal }) => {
       >
         <span />
         {horizontal.edges.map((edge, index) => (
-          <span key={index} className="truncate text-center" title={`${edgeText(edge, range)} ${horizontal.unit}`}>
-            {edgeText(edge, range)}
+          <span key={index} className="truncate text-center" title={`${edgeText(edge, horizontalPrecision)} ${horizontal.unit}`}>
+            {edgeText(edge, horizontalPrecision)}
           </span>
         ))}
         {vertical.edges.map((verticalEdge, row) => (
           <React.Fragment key={row}>
-            <span className="truncate pr-1" title={`${edgeText(verticalEdge, range)} ${vertical.unit}`}>
-              {edgeText(verticalEdge, range)}
+            <span className="truncate pr-1" title={`${edgeText(verticalEdge, verticalPrecision)} ${vertical.unit}`}>
+              {edgeText(verticalEdge, verticalPrecision)}
             </span>
             {horizontal.edges.map((_, column) => {
               const cell = cellAt(signal, [row, column]);
@@ -104,7 +108,7 @@ const BinnedChart: React.FC<{ signal: RideSummaryBinned }> = ({ signal }) => {
                   key={column}
                   className={cn('block h-5 min-w-5 border border-term-bg', opacity > 0 ? 'bg-term-amber' : 'bg-term-rule')}
                   style={{ opacity: opacity > 0 ? opacity : 1 }}
-                  title={`${edgeText(verticalEdge, range)} / ${edgeText(horizontal.edges[column], range)}: ${formatRideValue(value, range)} ${signal.unit}${cell?.flag ? ` · ${cell.flag}` : ''}`}
+                  title={`${edgeText(verticalEdge, verticalPrecision)} / ${edgeText(horizontal.edges[column], horizontalPrecision)}: ${formatRideValue(value, range)} ${signal.unit}${cell?.flag ? ` · ${cell.flag}` : ''}`}
                 />
               );
             })}

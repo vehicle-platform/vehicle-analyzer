@@ -5,6 +5,7 @@ import {
   formatRideValue,
   heatOpacity,
   maxCellValue,
+  precisionForAxis,
   precisionForRange,
 } from '../src/services/rideSummaryLayout';
 import type { RideSummaryBinned } from '../src/services/sessionClient';
@@ -36,6 +37,14 @@ describe('ride summary layout', () => {
     expect(precisionForRange([5, 5])).toBe(3);
     expect(formatRideValue(12.345, [0, 200])).toBe('12.35');
     expect(formatRideValue(null, [0, 200])).toBe('–');
+  });
+
+  it('derives edge precision from the axis range, not the signal range', () => {
+    expect(precisionForAxis([[0, 3000], [3000, 6000], [6000, 9000], [9000, 12000]])).toBe(0);
+    expect(precisionForAxis([[0, 0.25], [0.25, 0.5], [0.5, 1]])).toBe(4);
+    expect(precisionForAxis([[-10, 10]])).toBe(3);
+    expect(precisionForAxis([[-1000, -500], [-500, 0]])).toBe(1);
+    expect(precisionForAxis([])).toBe(3);
   });
 
   it('scales bars to the largest value and keeps nulls empty', () => {
