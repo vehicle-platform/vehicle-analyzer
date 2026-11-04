@@ -28,8 +28,8 @@ Every CAN ID, signal, scaling, cycle time, E2E DataID, DID, UDS address and test
 The Q-001 listen-only capture is a text file written by `vehicle-connectivity-node` while it runs
 the PlatformIO environment `esp32-s3-devkitc-1-listen-only`. The board receives every frame on the
 vehicle bus without transmitting and prints text lines on USB serial at **921600 baud**: `F,...`
-frame lines, `S,...` per-ID summaries every 10 s and a `FINAL,...` block after 300 s. The first
-line is a `# vehicle-connectivity-node CAN capture` banner.
+frame lines, `S,...` per-ID summaries every 10 s and a `FINAL,...` block after 300 s. The capture
+starts with a `# vehicle-connectivity-node CAN capture` banner; serial boot noise may precede it.
 
 Save the raw serial output with any serial terminal that can log to a file; the analyzer does not
 open a serial port and never starts a capture. Flash the listen-only environment, open the USB
