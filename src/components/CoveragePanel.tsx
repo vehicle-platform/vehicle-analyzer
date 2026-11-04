@@ -259,6 +259,7 @@ export const CoveragePanel: React.FC<CoveragePanelProps> = ({ token, onTokenChan
               key={group}
               toggled={groups.includes(group)}
               onClick={() => toggleGroup(group)}
+              aria-label={`Filter ${GROUP_LABELS[group]}`}
               title={`Show or hide ${GROUP_LABELS[group]}`}
             >
               {GROUP_LABELS[group]} <span className="text-term-hi">{summary.groups[group]}</span>{' '}
@@ -282,7 +283,13 @@ export const CoveragePanel: React.FC<CoveragePanelProps> = ({ token, onTokenChan
         <span className="text-term-dim">class</span>
         <span role="group" aria-label="Filter by derived class" className="flex gap-1">
           {CLASSES.map((letter) => (
-            <TermButton key={letter} toggled={classes.includes(letter)} onClick={() => toggleClass(letter)} title={`Show only class ${letter} derived signals`}>
+            <TermButton
+              key={letter}
+              toggled={classes.includes(letter)}
+              onClick={() => toggleClass(letter)}
+              aria-label={`Filter class ${letter}`}
+              title={`Show only class ${letter} derived signals`}
+            >
               {letter}
             </TermButton>
           ))}
