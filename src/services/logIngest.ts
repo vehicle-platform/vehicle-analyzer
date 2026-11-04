@@ -8,15 +8,31 @@ interface ParsedLog {
   summary?: ConnCaptureSummary;
 }
 
-/** Picks the conn capture from its banner or a bare frame line; other formats keep their extension. */
+const DETECT_LINES = 100;
+
+/** The first `count` non-empty lines, without splitting the whole (possibly large) file. */
+function headLines(text: string, count: number): string[] {
+  const lines: string[] = [];
+  let start = 0;
+  while (lines.length < count && start < text.length) {
+    let end = text.indexOf('\n', start);
+    if (end < 0) end = text.length;
+    const line = text.slice(start, text[end - 1] === '\r' ? end - 1 : end);
+    if (line !== '') lines.push(line);
+    start = end + 1;
+  }
+  return lines;
+}
+
+/**
+ * Picks the conn capture from its banner or a bare `F,` frame line among the first 100
+ * non-empty lines (serial boot noise may come first). This wins over the file extension: a
+ * CSV whose lines start with `F,` would be read as a capture. Otherwise null, and the caller
+ * keeps the extension rule.
+ */
 export function detectLogFormat(text: string): ParseLogRequest['format'] | null {
-  const lines = text
-    .split('\n')
-    .map((line) => (line.endsWith('\r') ? line.slice(0, -1) : line))
-    .filter((line) => line !== '')
-    .slice(0, 100);
-  if (lines.some((line) => line.startsWith('# vehicle-connectivity-node CAN capture'))) return 'conn';
-  return lines.some((line) => line.startsWith('F,')) ? 'conn' : null;
+  const lines = headLines(text, DETECT_LINES);
+  return lines.some((line) => line.startsWith('# vehicle-connectivity-node CAN capture') || line.startsWith('F,')) ? 'conn' : null;
 }
 
 export function parseLog(text: string, format: ParseLogRequest['format']): ParsedLog {
