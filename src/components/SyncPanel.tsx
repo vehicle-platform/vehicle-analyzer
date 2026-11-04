@@ -3,6 +3,8 @@ import { CanFrame, DbcMessageDef, TelemetrySource } from '../types/can';
 import { CaptureStore } from '../state/captureStore';
 import { parseDbcText } from '../services/dbcParser';
 import { startLogIngest, type LogIngestJob } from '../services/ingestClient';
+import { detectLogFormat } from '../services/logIngest';
+import type { ConnCaptureSummary } from '../services/connCaptureParser';
 import { Na, Note, TermButton, Toolbar, cn } from '../ui/primitives';
 import { useHotkeys } from '../ui/keys';
 import { GutterMark, ListHead, TD, TH } from '../ui/panel-parts';
@@ -30,6 +32,7 @@ export const SyncPanel: React.FC<SyncPanelProps> = ({ store, source, onLogLoaded
   const [selection, setSelection] = useState<Selection>({ kind: 'msg', id: catalog[0]?.id ?? 0 });
   const [status, setStatus] = useState<string>('');
   const [importState, setImportState] = useState<ImportState>({ status: 'idle' });
+  const [captureSummary, setCaptureSummary] = useState<ConnCaptureSummary | null>(null);
   const dbcInput = useRef<HTMLInputElement>(null);
   const logInput = useRef<HTMLInputElement>(null);
   const logJob = useRef<LogIngestJob | null>(null);
@@ -94,15 +97,16 @@ export const SyncPanel: React.FC<SyncPanelProps> = ({ store, source, onLogLoaded
 
     if (importState.status === 'running') cancelImport();
     const id = ++importSeq.current;
-    const format = file.name.toLowerCase().endsWith('.asc') ? 'asc' : 'csv';
     const frames: CanFrame[] = [];
     let finished = false;
     setStatus('');
+    setCaptureSummary(null);
     setImportState({ status: 'running', name: file.name, parsed: 0, total: 0 });
 
     // The worker only parses: the store sees the log through the replay transport, which
     // decodes each frame with the catalog active at that moment.
     readFile(file, (text) => {
+      const format = detectLogFormat(text) ?? (file.name.toLowerCase().endsWith('.asc') ? 'asc' : 'csv');
       const job = startLogIngest(
         { kind: 'parse-log', id, format, text },
         {
@@ -114,10 +118,11 @@ export const SyncPanel: React.FC<SyncPanelProps> = ({ store, source, onLogLoaded
             if (importSeq.current !== id) return;
             frames.push(...batch);
           },
-          onDone: (total) => {
+          onDone: (total, summary) => {
             finished = true;
             if (importSeq.current !== id) return;
             logJob.current = null;
+            setCaptureSummary(summary ?? null);
             if (frames.length === 0) {
               setStatus(`No CAN frame could be read from ${file.name}.`);
               setImportState({ status: 'done', name: file.name, total });
@@ -199,6 +204,13 @@ export const SyncPanel: React.FC<SyncPanelProps> = ({ store, source, onLogLoaded
         </div>
       )}
 
+      {captureSummary && (
+        <div data-testid="capture-summary" className="shrink-0 border-b border-term-rule px-[14px] py-[6px] text-term-dim">
+          conn capture · {captureSummary.frames.toLocaleString()} frames ·{' '}
+          {captureSummary.block ? `${captureSummary.block.rows.length} IDs in the summary` : 'no summary block'}
+        </div>
+      )}
+
       <div className="flex min-h-0 flex-1 overflow-hidden">
         <nav aria-label="Definitions" className="flex w-[330px] shrink-0 flex-col overflow-y-auto border-r border-term-rule bg-term-raise">
           <ListHead aside={`${catalog.length} messages`}>platform bus</ListHead>
@@ -243,10 +255,13 @@ export const SyncPanel: React.FC<SyncPanelProps> = ({ store, source, onLogLoaded
           <ListHead>replay a log</ListHead>
           <div className="flex flex-col items-start px-[8px] py-[6px]">
             <TermButton hotkey="I" onClick={() => logInput.current?.click()}>
-              load .asc or .csv
+              load .asc, .csv, .log or .txt
             </TermButton>
-            <input ref={logInput} type="file" accept=".asc,.csv" onChange={handleLogUpload} className="hidden" tabIndex={-1} />
-            <Note className="mt-1 px-[8px] text-term-faint">ASC channel 1 = vehicle bus, 2 = platform bus (vehicle-server convention).</Note>
+            <input ref={logInput} type="file" accept=".asc,.csv,.log,.txt" onChange={handleLogUpload} className="hidden" tabIndex={-1} />
+            <Note className="mt-1 px-[8px] text-term-faint">
+              ASC channel 1 = vehicle bus, 2 = platform bus (vehicle-server convention). A conn listen-only capture is detected from its
+              banner or F, lines; its frames are vehicle bus.
+            </Note>
           </div>
         </nav>
 
