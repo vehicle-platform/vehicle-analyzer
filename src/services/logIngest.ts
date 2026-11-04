@@ -14,7 +14,7 @@ export function detectLogFormat(text: string): ParseLogRequest['format'] | null 
     .split('\n')
     .map((line) => (line.endsWith('\r') ? line.slice(0, -1) : line))
     .filter((line) => line !== '')
-    .slice(0, 20);
+    .slice(0, 100);
   if (lines.some((line) => line.startsWith('# vehicle-connectivity-node CAN capture'))) return 'conn';
   return lines.some((line) => line.startsWith('F,')) ? 'conn' : null;
 }

@@ -42,6 +42,8 @@ describe('log format detection', () => {
   it('picks conn from the banner or a bare frame line', () => {
     expect(detectLogFormat(CONN_TEXT)).toBe('conn');
     expect(detectLogFormat('ets Jul 29 2019 12:21:46\nF,1000000,100,S,1,00')).toBe('conn');
+    const boot = Array.from({ length: 30 }, (_, i) => `boot line ${i + 1}`);
+    expect(detectLogFormat([...boot, CONN_TEXT].join('\n'))).toBe('conn');
   });
 
   it('does not pick conn for ASC or CSV', () => {
