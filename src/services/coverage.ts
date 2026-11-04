@@ -200,21 +200,15 @@ export function defsStatusText(row: CoverageRow): string {
 }
 
 /**
- * Report keys used for the sensor presence cell (from vehicle_server/report.py):
- * `imu` covers ble.imuBlock.*, `gps` covers ble.gpsBlock.*, `can_health` carries the
- * telemetry CAN counters (canTxErrorCount, canRxErrorCount, canBusOffCount,
- * unansweredDidCount) and `tester_stats` carries rttMaxMs, rttNrc78Count and
- * stepGapMaxMs. ble.telemetry.leanAngle is deprecated and has no summary block here.
+ * Report keys used for the sensor presence cell (from vehicle_server/report.py): `imu` covers
+ * ble.imuBlock.* and `gps` covers ble.gpsBlock.* (block-level presence only, never a position).
+ * Other sources (ble.telemetry.*) have no one-to-one report block, so they read "not in report"
+ * rather than a hand-written field mapping (invariant 2).
  */
 function sensorReportKey(phase0: string | null): string | null {
   if (phase0 === null) return null;
   if (phase0.startsWith('ble.imuBlock.')) return 'imu';
   if (phase0.startsWith('ble.gpsBlock.')) return 'gps';
-  if (phase0.startsWith('ble.telemetry.')) {
-    const field = phase0.slice('ble.telemetry.'.length);
-    if (['canTxErrorCount', 'canRxErrorCount', 'canBusOffCount', 'unansweredDidCount'].includes(field)) return 'can_health';
-    if (['rttMaxMs', 'rttNrc78Count', 'stepGapMaxMs'].includes(field)) return 'tester_stats';
-  }
   return null;
 }
 

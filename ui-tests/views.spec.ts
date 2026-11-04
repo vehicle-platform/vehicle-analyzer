@@ -30,6 +30,7 @@ const VIEWS = [
   { key: 'a', label: 'Compare', target: (page: Page) => page.getByText('Pick two sessions (Refresh first) and press Compare.') },
   { key: 'g', label: 'Ride track', target: (page: Page) => page.getByText('No recorded session selected. Pick one in Sessions (E).') },
   { key: 'n', label: 'Ride history', target: (page: Page) => page.getByText(/Refresh to load the ride table/) },
+  { key: 'i', label: 'Signal coverage', target: (page: Page) => page.getByRole('table', { name: 'Signal coverage' }) },
 ];
 
 for (const view of VIEWS) {

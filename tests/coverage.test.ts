@@ -92,6 +92,12 @@ describe('applySession', () => {
     derived_summary: { records: { [classB.record!]: { signals: { [classB.name]: { status: 'missing_inputs', missing: ['did.X'] } } } } },
   };
 
+  it('does not guess a report block for sources without a one-to-one block', () => {
+    const telemetry = DEFS.sensors.find((sensor) => sensor.phase0?.startsWith('ble.telemetry.'));
+    if (telemetry === undefined) return;
+    expect(applySession(rows, report).find((row) => row.name === telemetry.name)?.session).toEqual({ status: 'not in report', detail: '' });
+  });
+
   it('reads the report keys the server provides', () => {
     const next = applySession(rows, report);
     expect(next.find((row) => row.name === polled.name)?.session).toEqual({ status: 'valid', detail: '90%' });
