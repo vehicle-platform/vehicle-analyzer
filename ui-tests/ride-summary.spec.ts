@@ -26,6 +26,17 @@ const SUMMARY = {
     { name: 'ride_fuel_used', status: 'missing_inputs', missing: ['did.FUEL_RATE'] },
   ],
 };
+const BRINGUP = {
+  session_id: 'ride-1',
+  gate: 'V0',
+  verdict: 'incomplete',
+  checks: [
+    { id: 'can_alive', status: 'pass', measured: { frames: 120 }, expected: '> 0 frames', source: 'report', note: '' },
+    { id: 'led_ring', status: 'manual', measured: null, expected: 'LEDs lit', source: 'manual', note: 'look at the ring' },
+  ],
+  needs_you: ['led_ring'],
+  warnings: [],
+};
 const RIDES = {
   columns: [{ name: 'ride_distance', unit: 'km' }],
   rows: [
@@ -54,6 +65,8 @@ async function routeServer(page: Page) {
     else if (url.pathname === '/sessions/ride-1/report') await json({ status: 'ok' });
     else if (url.pathname === '/sessions/ride-1/summary') await json(SUMMARY);
     else if (url.pathname === '/sessions/ride-2/summary') await json({ detail: 'session has no ride summary' }, 404);
+    else if (url.pathname === '/sessions/ride-1/bringup') await json(BRINGUP);
+    else if (url.pathname === '/sessions/ride-2/bringup') await json({ detail: 'Not Found' }, 404);
     else if (url.pathname === '/rides') await json(RIDES);
     else await json({ detail: 'not found' }, 404);
   });
@@ -88,7 +101,13 @@ test('Sessions view shows the stored ride summary of the selected session', asyn
   await expect(scalars).toContainText('km');
   await expect(page.getByRole('img', { name: 'ride_coolant_time_at_temp bins' })).toBeVisible();
 
+  const verdict = page.getByLabel('Bring-up verdict');
+  await expect(verdict).toContainText('V0 incomplete');
+  await expect(verdict).toContainText('1 manual check pending');
+  await expect(page.getByRole('table', { name: 'Bring-up checks' })).toContainText('can_alive');
+
   await page.getByRole('button', { name: /ride-2/ }).click();
+  await expect(page.getByText('this server has no bring-up check (needs vehicle-server with LR12)')).toBeVisible();
   await expect(page.getByText('No stored ride summary for this session.')).toBeVisible();
 
   expectOnlyOwnOrigins(page, requests);

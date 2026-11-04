@@ -4,6 +4,7 @@ import { Empty, GutterMark, ListHead } from '../ui/panel-parts';
 import { useHotkeys } from '../ui/keys';
 import { RecordedSeries, SessionClient, SessionRow, sessionRowInfo, summarizeReport } from '../services/sessionClient';
 import { RideSummary } from './RideSummary';
+import { BringupCheck } from './BringupCheck';
 import {
   SessionFilter,
   SessionSort,
@@ -245,6 +246,8 @@ export const SessionPanel: React.FC<SessionPanelProps> = ({ token, onTokenChange
                   ))}
                 </dl>
               )}
+              <ListHead>bring-up check</ListHead>
+              <BringupCheck token={token} serverUrl={serverUrl} sessionId={selected} />
               <ListHead>ride summary</ListHead>
               <RideSummary token={token} serverUrl={serverUrl} sessionId={selected} />
             </>
