@@ -1,11 +1,49 @@
 import type { CanFrame } from '../types/can';
+import { parseConnCapture, type ConnCaptureSummary } from './connCaptureParser';
 import { parseCanCsv, parseVectorAsc } from './logParser';
 import { INGEST_BATCH_SIZE, type IngestResponse, type ParseLogRequest } from './ingestProtocol';
 
+interface ParsedLog {
+  frames: CanFrame[];
+  summary?: ConnCaptureSummary;
+}
+
+const DETECT_LINES = 100;
+
+/** The first `count` non-empty lines, without splitting the whole (possibly large) file. */
+function headLines(text: string, count: number): string[] {
+  const lines: string[] = [];
+  let start = 0;
+  while (lines.length < count && start < text.length) {
+    let end = text.indexOf('\n', start);
+    if (end < 0) end = text.length;
+    const line = text.slice(start, text[end - 1] === '\r' ? end - 1 : end);
+    if (line !== '') lines.push(line);
+    start = end + 1;
+  }
+  return lines;
+}
+
+/**
+ * Picks the conn capture from its banner or a bare `F,` frame line among the first 100
+ * non-empty lines (serial boot noise may come first). This wins over the file extension: a
+ * CSV whose lines start with `F,` would be read as a capture. Otherwise null, and the caller
+ * keeps the extension rule.
+ */
+export function detectLogFormat(text: string): ParseLogRequest['format'] | null {
+  const lines = headLines(text, DETECT_LINES);
+  return lines.some((line) => line.startsWith('# vehicle-connectivity-node CAN capture') || line.startsWith('F,')) ? 'conn' : null;
+}
+
+export function parseLog(text: string, format: ParseLogRequest['format']): ParsedLog {
+  const parsed =
+    format === 'asc' ? { frames: parseVectorAsc(text) } : format === 'csv' ? { frames: parseCanCsv(text) } : parseConnCapture(text);
+  return { ...parsed, frames: parsed.frames.sort((a, b) => a.timestamp - b.timestamp) };
+}
+
 /** Parses a log and returns its frames in capture order. */
 export function parseLogFrames(text: string, format: ParseLogRequest['format']): CanFrame[] {
-  const frames = format === 'asc' ? parseVectorAsc(text) : parseCanCsv(text);
-  return frames.sort((a, b) => a.timestamp - b.timestamp);
+  return parseLog(text, format).frames;
 }
 
 /**
@@ -14,7 +52,7 @@ export function parseLogFrames(text: string, format: ParseLogRequest['format']):
  * and E2E stay in CaptureStore, which sees the frames through the replay transport.
  */
 export function runLogIngest(request: ParseLogRequest, emit: (message: IngestResponse) => void): void {
-  const frames = parseLogFrames(request.text, request.format);
+  const { frames, summary } = parseLog(request.text, request.format);
   const total = frames.length;
   emit({ kind: 'progress', id: request.id, parsed: 0, total });
 
@@ -24,5 +62,5 @@ export function runLogIngest(request: ParseLogRequest, emit: (message: IngestRes
     emit({ kind: 'batch', id: request.id, frames: batch, parsed, total });
     emit({ kind: 'progress', id: request.id, parsed, total });
   }
-  emit({ kind: 'done', id: request.id, total });
+  emit({ kind: 'done', id: request.id, total, summary });
 }

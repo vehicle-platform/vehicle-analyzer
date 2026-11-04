@@ -50,7 +50,7 @@ export const TABS: { id: CockpitTab; key: string; label: string }[] = [
 
 const SOURCES: { value: TelemetrySource; label: string; title: string }[] = [
   { value: 'virtual', label: 'Virtual bus', title: 'Simulated CL250 vehicle bus + platform bus' },
-  { value: 'local_file', label: 'Log replay', title: 'Replay an .asc or .csv log' },
+  { value: 'local_file', label: 'Log replay', title: 'Replay an .asc, .csv, .log or .txt log' },
   { value: 'server_session', label: 'Session', title: 'Recorded vehicle-server session (read-only HTTP)' },
   { value: 'websocket', label: 'WS live', title: 'vehicle-server live stream' },
   { value: 'webserial', label: 'USB CAN', title: 'SLCAN adapter, opened listen-only' },

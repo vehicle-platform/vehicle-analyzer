@@ -23,6 +23,30 @@ Every CAN ID, signal, scaling, cycle time, E2E DataID, DID, UDS address and test
 - **Ride summaries:** the D-070 class-B per-ride summaries that vehicle-server stores (one session = one ride). **Recorded sessions (E)** shows a ride summary card for the selected session (scalars with units, time-in-bin charts with their axes, and the signals that could not be computed with the reason); **Compare (A)** adds an A / B / B - A table of the common scalars and a second CSV block; **Ride history (key N)** plots 1-4 scalar columns of `GET /rides` across sessions, with gaps where a ride has no value, and a click opens that ride in Sessions. Names, units, ranges and bin edges come from the server response, never from a list in the analyzer.
 - **Live stream:** the client sends a `hello` with the token entered in the header's token field (kept in sessionStorage, never in the URL); a rejected token (close 1008/1011) is not retried. The header shows the server's `source` from its heartbeat; `source mock` (server started with `VEHICLE_LIVE_SOURCE=mock`) is shown in amber so synthetic data is not mistaken for a real bus.
 
+## Opening a conn listen-only capture
+
+The Q-001 listen-only capture is a text file written by `vehicle-connectivity-node` while it runs
+the PlatformIO environment `esp32-s3-devkitc-1-listen-only`. The board receives every frame on the
+vehicle bus without transmitting and prints text lines on USB serial at **921600 baud**: `F,...`
+frame lines, `S,...` per-ID summaries every 10 s and a `FINAL,...` block after 300 s. The capture
+starts with a `# vehicle-connectivity-node CAN capture` banner; serial boot noise may precede it.
+
+Save the raw serial output with any serial terminal that can log to a file; the analyzer does not
+open a serial port and never starts a capture. Flash the listen-only environment, open the USB
+serial port at 921600 baud in the terminal, start logging, and stop after the `FINAL` lines.
+
+Load the saved `.log` or `.txt` file in **Defs & logs (key D)** with the same picker used for
+`.asc` and `.csv`. The format is detected from the banner or the first `F,` line. The frames belong
+to the vehicle bus, and the **Capture quality** report shows frames, IDs, duration, restarts,
+skipped/malformed lines, any warnings, and the per-ID gap table sorted by ID.
+The node keeps printing `S` blocks after `FINAL`; the report counts the 300 s window as reached
+once a complete `FINAL` block was read. A node restart (a repeated banner, or a frame time more
+than 1 s before the previous one) starts a new run: the node's counters start again, so the
+warnings cover every run, the per-ID table shows the last run, and later frames are shifted to
+follow the previous run (the real reboot gap is not in the file).
+
+A real capture stays on the user's machine and is never committed (D-033). Test data is synthetic.
+
 ## Quick start
 
 Requires Node.js 18+.

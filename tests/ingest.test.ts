@@ -1,12 +1,22 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DEFS } from '../src/defs';
 import { VirtualCanBus } from '../src/services/virtualBus';
-import { parseLogFrames } from '../src/services/logIngest';
+import { detectLogFormat, parseLogFrames } from '../src/services/logIngest';
 import { startLogIngest } from '../src/services/ingestClient';
 import { INGEST_BATCH_SIZE } from '../src/services/ingestProtocol';
 import { exportToCsv, exportToVectorAsc } from '../src/services/exportService';
+import type { ConnCaptureSummary } from '../src/services/connCaptureParser';
 import type { IngestFormat } from '../src/services/ingestProtocol';
 import type { CanFrame } from '../src/types/can';
+
+const CONN_TEXT = [
+  '# vehicle-connectivity-node CAN capture: TWAI listen-only, 500 kbps, accept-all.',
+  'F,1000000,100,S,2,AABB',
+  'F,2000000,200,S,1,01',
+  'S,10000000,100,S,2,1.000,1.000,-',
+  'S,10000000,200,S,1,-,-,-',
+  'S,END,10000000,frames=2,ids=2,overflow=0,lost=0,dropped=0',
+].join('\n');
 
 function capture(seconds: number): CanFrame[] {
   const bus = new VirtualCanBus(DEFS);
@@ -25,6 +35,21 @@ describe('parseLogFrames', () => {
     const frames = parseLogFrames(exportToVectorAsc(shuffled), 'asc');
     expect(frames).toHaveLength(raw.length);
     for (let i = 1; i < frames.length; i++) expect(frames[i].timestamp).toBeGreaterThanOrEqual(frames[i - 1].timestamp);
+  });
+});
+
+describe('log format detection', () => {
+  it('picks conn from the banner or a bare frame line', () => {
+    expect(detectLogFormat(CONN_TEXT)).toBe('conn');
+    expect(detectLogFormat('ets Jul 29 2019 12:21:46\nF,1000000,100,S,1,00')).toBe('conn');
+    const boot = Array.from({ length: 30 }, (_, i) => `boot line ${i + 1}`);
+    expect(detectLogFormat([...boot, CONN_TEXT].join('\n'))).toBe('conn');
+  });
+
+  it('does not pick conn for ASC or CSV', () => {
+    const raw = capture(1);
+    expect(detectLogFormat(exportToVectorAsc(raw))).toBeNull();
+    expect(detectLogFormat(exportToCsv(raw))).toBeNull();
   });
 });
 
@@ -63,5 +88,36 @@ describe('log ingest fallback', () => {
     expect(progress[0]).toBe(0);
     expect(progress[progress.length - 1]).toBe(expected.length);
     expect(batches).toBe(Math.ceil(expected.length / INGEST_BATCH_SIZE));
+  });
+
+  it('parses a conn capture in batches without a Worker and returns its summary', () => {
+    vi.stubGlobal('Worker', undefined);
+    const expected = parseLogFrames(CONN_TEXT, 'conn');
+    const frames: CanFrame[] = [];
+    let done = -1;
+    let summary: ConnCaptureSummary | undefined;
+    let error = '';
+
+    startLogIngest(
+      { kind: 'parse-log', id: 2, format: 'conn', text: CONN_TEXT },
+      {
+        onProgress: () => undefined,
+        onBatch: (batch) => frames.push(...batch),
+        onDone: (total, parsedSummary) => {
+          done = total;
+          summary = parsedSummary;
+        },
+        onError: (message) => {
+          error = message;
+        },
+      }
+    );
+
+    expect(error).toBe('');
+    expect(done).toBe(2);
+    expect(frames).toEqual(expected);
+    expect(frames.map((f) => f.bus)).toEqual(['vehicle', 'vehicle']);
+    expect(summary?.bannerSeen).toBe(true);
+    expect(summary?.block?.end).toEqual({ frames: 2, ids: 2, overflow: 0, lost: 0, dropped: 0 });
   });
 });

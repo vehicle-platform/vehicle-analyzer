@@ -1,11 +1,12 @@
 import type { CanFrame } from '../types/can';
 import type { IngestResponse, ParseLogRequest } from './ingestProtocol';
+import type { ConnCaptureSummary } from './connCaptureParser';
 import { runLogIngest } from './logIngest';
 
 export interface LogIngestHandlers {
   onProgress: (parsed: number, total: number) => void;
   onBatch: (frames: CanFrame[]) => void;
-  onDone: (total: number) => void;
+  onDone: (total: number, summary?: ConnCaptureSummary) => void;
   onError: (message: string) => void;
 }
 
@@ -24,7 +25,7 @@ export function startLogIngest(request: ParseLogRequest, handlers: LogIngestHand
     if (cancelled || message.id !== request.id) return;
     if (message.kind === 'progress') handlers.onProgress(message.parsed, message.total);
     else if (message.kind === 'batch') handlers.onBatch(message.frames);
-    else if (message.kind === 'done') handlers.onDone(message.total);
+    else if (message.kind === 'done') handlers.onDone(message.total, message.summary);
     else handlers.onError(message.message);
   };
 
