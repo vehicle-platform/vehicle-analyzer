@@ -5,6 +5,7 @@ import { parseDbcText } from '../services/dbcParser';
 import { startLogIngest, type LogIngestJob } from '../services/ingestClient';
 import { detectLogFormat } from '../services/logIngest';
 import type { ConnCaptureSummary } from '../services/connCaptureParser';
+import { CaptureQuality } from './CaptureQuality';
 import { Na, Note, TermButton, Toolbar, cn } from '../ui/primitives';
 import { useHotkeys } from '../ui/keys';
 import { GutterMark, ListHead, TD, TH } from '../ui/panel-parts';
@@ -204,12 +205,7 @@ export const SyncPanel: React.FC<SyncPanelProps> = ({ store, source, onLogLoaded
         </div>
       )}
 
-      {captureSummary && (
-        <div data-testid="capture-summary" className="shrink-0 border-b border-term-rule px-[14px] py-[6px] text-term-dim">
-          conn capture · {captureSummary.frames.toLocaleString()} frames ·{' '}
-          {captureSummary.block ? `${captureSummary.block.rows.length} IDs in the summary` : 'no summary block'}
-        </div>
-      )}
+      {captureSummary && <CaptureQuality summary={captureSummary} />}
 
       <div className="flex min-h-0 flex-1 overflow-hidden">
         <nav aria-label="Definitions" className="flex w-[330px] shrink-0 flex-col overflow-y-auto border-r border-term-rule bg-term-raise">
