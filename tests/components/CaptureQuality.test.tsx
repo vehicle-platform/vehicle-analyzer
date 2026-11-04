@@ -6,6 +6,17 @@ import type { ConnCaptureSummary } from '../../src/services/connCaptureParser';
 
 afterEach(cleanup);
 
+const block: NonNullable<ConnCaptureSummary['block']> = {
+  timeUs: 300_000_000,
+  final: true,
+  rows: [
+    { id: 0x300, extended: false, count: 4, minGapMs: 10, maxGapMs: 20.5, watched: false },
+    { id: 0x100, extended: false, count: 8, minGapMs: 5, maxGapMs: 6.25, watched: false },
+    { id: 0x123, extended: true, count: 1, minGapMs: null, maxGapMs: null, watched: true },
+  ],
+  end: { frames: 13, ids: 3, overflow: 0, lost: 1, dropped: 0 },
+};
+
 const summary: ConnCaptureSummary = {
   bannerSeen: true,
   frames: 12,
@@ -13,16 +24,9 @@ const summary: ConnCaptureSummary = {
   malformedFrames: 1,
   restarts: 1,
   durationS: 12.5,
-  block: {
-    timeUs: 300_000_000,
-    final: true,
-    rows: [
-      { id: 0x300, extended: false, count: 4, minGapMs: 10, maxGapMs: 20.5, watched: false },
-      { id: 0x100, extended: false, count: 8, minGapMs: 5, maxGapMs: 6.25, watched: false },
-      { id: 0x123, extended: true, count: 1, minGapMs: null, maxGapMs: null, watched: true },
-    ],
-    end: { frames: 13, ids: 3, overflow: 0, lost: 1, dropped: 0 },
-  },
+  finalSeen: true,
+  runBlocks: [block],
+  block,
 };
 
 describe('CaptureQuality', () => {
@@ -40,19 +44,18 @@ describe('CaptureQuality', () => {
     expect(within(rows[2]).getByText('X')).toBeTruthy();
     expect(within(rows[2]).getByText('W')).toBeTruthy();
     expect(within(rows[3]).getByText('0x300')).toBeTruthy();
+    expect(screen.getByText(/last node run only/)).toBeTruthy();
   });
 
   it('says when there are no warnings', () => {
+    const clean = { ...block, rows: block.rows.map((row) => ({ ...row, watched: false })), end: { ...block.end, lost: 0 } };
     render(
       <CaptureQuality
         summary={{
           ...summary,
           restarts: 0,
-          block: {
-            ...summary.block!,
-            rows: summary.block!.rows.map((row) => ({ ...row, watched: false })),
-            end: { ...summary.block!.end, lost: 0 },
-          },
+          runBlocks: [clean],
+          block: clean,
         }}
       />
     );

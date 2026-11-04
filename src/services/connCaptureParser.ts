@@ -32,6 +32,15 @@ export interface ConnCaptureSummary {
   malformedFrames: number;
   restarts: number;
   durationS: number;
+  /** A complete FINAL block was read (the node prints it once, 300 s after its start). */
+  finalSeen: boolean;
+  /**
+   * The last complete summary block of each node run, in file order. The node's counters and
+   * its per-ID table are cumulative within a run and start again after a restart, so the
+   * capture-quality warnings look at every run, not only the last one.
+   */
+  runBlocks: ConnCaptureSummaryBlock[];
+  /** The last complete block of the capture (the last entry of `runBlocks`), for the per-ID table. */
   block: ConnCaptureSummaryBlock | null;
 }
 
@@ -116,45 +125,71 @@ function parseSummaryRow(parts: string[]): ConnCaptureIdSummary | null {
   return { id, extended, count, minGapMs, maxGapMs, watched: watched === 'W' };
 }
 
+const END_KEYS = ['frames', 'ids', 'overflow', 'lost', 'dropped'] as const;
+
 function parseEndCounters(parts: string[]): ConnCaptureEndCounters | null {
-  if (parts.length !== 8) return null;
-  const counters: number[] = [];
-  for (let i = 3; i < 8; i++) {
-    const value = parseUint(parts[i].replace(/^(frames|ids|overflow|lost|dropped)=/, ''));
+  if (parts.length !== 3 + END_KEYS.length) return null;
+  const counters: Partial<ConnCaptureEndCounters> = {};
+  for (const [i, key] of END_KEYS.entries()) {
+    const field = parts[3 + i];
+    const value = field.startsWith(`${key}=`) ? parseUint(field.slice(key.length + 1)) : null;
     if (value === null) return null;
-    counters.push(value);
+    counters[key] = value;
   }
-  if (
-    !parts[3].startsWith('frames=') ||
-    !parts[4].startsWith('ids=') ||
-    !parts[5].startsWith('overflow=') ||
-    !parts[6].startsWith('lost=') ||
-    !parts[7].startsWith('dropped=')
-  ) {
-    return null;
-  }
-  return { frames: counters[0], ids: counters[1], overflow: counters[2], lost: counters[3], dropped: counters[4] };
+  return counters as ConnCaptureEndCounters;
 }
 
+/**
+ * Parses the vehicle-connectivity-node listen-only capture (format: `CanCaptureCore.h` in that
+ * repo). Never throws: unknown lines are counted as skipped, bad `F` lines as malformed.
+ *
+ * Summary rows of one block share the block's start time and may be interleaved with `F` lines
+ * (the node finishes a block over several passes when the serial buffer is full), so rows are
+ * grouped by kind and time. A block is complete when its END line was read and it carries one
+ * row per tracked ID (`ids=`); a block cut by a reset or by lost serial bytes is ignored.
+ *
+ * Node restarts: the node clock starts again at 0 after a reset and the banner is printed again.
+ * Either signal starts a new run: the capture-banner line after any data line, or an `F` time
+ * more than one second before the previous `F` time (a reset that loses the banner to serial
+ * noise). Every frame of a new run is offset to start 1 µs after the last frame of the previous
+ * run, so timestamps stay monotonic in file order; the real reboot gap is not in the file.
+ */
 export function parseConnCapture(text: string): { frames: CanFrame[]; summary: ConnCaptureSummary } {
   const frames: CanFrame[] = [];
   let bannerSeen = false;
   let skippedLines = 0;
   let malformedFrames = 0;
   let restarts = 0;
+  let finalSeen = false;
   let lastRawUs: number | null = null;
   let lastAdjustedUs = 0;
   let firstAdjustedUs = 0;
   let offsetUs = 0;
+  let runHasData = false;
+  let runStartPending = false;
   let currentBlock: BlockBuilder | null = null;
-  let lastCompleteBlock: ConnCaptureSummaryBlock | null = null;
+  let runBlock: ConnCaptureSummaryBlock | null = null;
+  const runBlocks: ConnCaptureSummaryBlock[] = [];
+
+  const startRun = () => {
+    restarts += 1;
+    if (runBlock !== null) runBlocks.push(runBlock);
+    runBlock = null;
+    currentBlock = null;
+    lastRawUs = null;
+    runHasData = false;
+    runStartPending = true;
+  };
 
   for (const rawLine of text.split('\n')) {
     const line = rawLine.endsWith('\r') ? rawLine.slice(0, -1) : rawLine;
     if (line === '') continue;
 
     if (line.startsWith('#')) {
-      if (line.startsWith(BANNER)) bannerSeen = true;
+      if (line.startsWith(BANNER)) {
+        bannerSeen = true;
+        if (runHasData) startRun();
+      }
       continue;
     }
 
@@ -164,13 +199,11 @@ export function parseConnCapture(text: string): { frames: CanFrame[]; summary: C
         malformedFrames += 1;
         continue;
       }
+      if (lastRawUs !== null && parsed.rawUs < lastRawUs - RESTART_GAP_US) startRun();
+      if (runStartPending && frames.length > 0) offsetUs = lastAdjustedUs + 1 - parsed.rawUs;
+      runStartPending = false;
+      runHasData = true;
 
-      // The node clock starts at 0 after a reset. A backwards jump larger than one second is
-      // a restart: offset every later frame so the replay stays monotonic in file order.
-      if (lastRawUs !== null && parsed.rawUs < lastRawUs - RESTART_GAP_US) {
-        restarts += 1;
-        offsetUs = lastAdjustedUs + 1 - parsed.rawUs;
-      }
       const adjustedUs = parsed.rawUs + offsetUs;
       if (frames.length === 0) firstAdjustedUs = adjustedUs;
       lastRawUs = parsed.rawUs;
@@ -190,42 +223,48 @@ export function parseConnCapture(text: string): { frames: CanFrame[]; summary: C
     if (line.startsWith('S,') || line.startsWith('FINAL,')) {
       const final = line.startsWith('FINAL,');
       const parts = line.split(',');
-
-      if (parts[1] === 'END') {
-        const timeUs = parseUint(parts[2]);
-        const end = timeUs === null ? null : parseEndCounters(parts);
-        if (timeUs === null || end === null) {
-          skippedLines += 1;
-          continue;
-        }
-        const block =
-          currentBlock !== null && currentBlock.timeUs === timeUs && currentBlock.final === final
-            ? currentBlock
-            : { timeUs, final, rows: [] };
-        lastCompleteBlock = { timeUs, final, rows: block.rows, end };
-        currentBlock = null;
-        continue;
-      }
-
-      const timeUs = parseUint(parts[1]);
-      const row = parseSummaryRow(parts);
-      if (timeUs === null || row === null) {
+      const isEnd = parts[1] === 'END';
+      const timeUs = parseUint(isEnd ? parts[2] : parts[1]);
+      const end = isEnd ? parseEndCounters(parts) : null;
+      const row = isEnd ? null : parseSummaryRow(parts);
+      if (timeUs === null || (isEnd ? end === null : row === null)) {
         skippedLines += 1;
         continue;
       }
-      if (currentBlock === null || currentBlock.timeUs !== timeUs || currentBlock.final !== final) {
-        currentBlock = { timeUs, final, rows: [] };
+      runHasData = true;
+      const matches = currentBlock !== null && currentBlock.timeUs === timeUs && currentBlock.final === final;
+
+      if (end !== null) {
+        const rows = matches && currentBlock !== null ? currentBlock.rows : [];
+        if (rows.length === end.ids) {
+          runBlock = { timeUs, final, rows, end };
+          if (final) finalSeen = true;
+        }
+        currentBlock = null;
+        continue;
       }
-      currentBlock.rows.push(row);
+      if (!matches || currentBlock === null) currentBlock = { timeUs, final, rows: [] };
+      if (row !== null) currentBlock.rows.push(row);
       continue;
     }
 
     skippedLines += 1;
   }
 
+  if (runBlock !== null) runBlocks.push(runBlock);
   const durationS = frames.length > 0 ? (lastAdjustedUs - firstAdjustedUs) / 1_000_000 : 0;
   return {
     frames,
-    summary: { bannerSeen, frames: frames.length, skippedLines, malformedFrames, restarts, durationS, block: lastCompleteBlock },
+    summary: {
+      bannerSeen,
+      frames: frames.length,
+      skippedLines,
+      malformedFrames,
+      restarts,
+      durationS,
+      finalSeen,
+      runBlocks,
+      block: runBlocks[runBlocks.length - 1] ?? null,
+    },
   };
 }

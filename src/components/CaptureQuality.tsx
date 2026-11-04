@@ -67,6 +67,12 @@ export const CaptureQuality: React.FC<CaptureQualityProps> = ({ summary }) => {
         <p className="border-t border-term-rule px-[14px] py-[5px] text-term-dim">No capture-quality warnings.</p>
       )}
 
+      {summary.restarts > 0 && rows.length > 0 && (
+        <p className="border-t border-term-rule px-[14px] py-[5px] text-term-faint">
+          Per-ID table: last node run only (the node starts its counters again after a restart).
+        </p>
+      )}
+
       <div className="max-h-[32vh] overflow-auto border-t border-term-rule">
         {rows.length === 0 ? (
           <p className="px-[14px] py-[6px] text-term-faint">No per-ID summary rows in this capture.</p>

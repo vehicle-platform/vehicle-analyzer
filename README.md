@@ -39,6 +39,11 @@ Load the saved `.log` or `.txt` file in **Defs & logs (key D)** with the same pi
 `.asc` and `.csv`. The format is detected from the banner or the first `F,` line. The frames belong
 to the vehicle bus, and the **Capture quality** report shows frames, IDs, duration, restarts,
 skipped/malformed lines, any warnings, and the per-ID gap table sorted by ID.
+The node keeps printing `S` blocks after `FINAL`; the report counts the 300 s window as reached
+once a complete `FINAL` block was read. A node restart (a repeated banner, or a frame time more
+than 1 s before the previous one) starts a new run: the node's counters start again, so the
+warnings cover every run, the per-ID table shows the last run, and later frames are shifted to
+follow the previous run (the real reboot gap is not in the file).
 
 A real capture stays on the user's machine and is never committed (D-033). Test data is synthetic.
 

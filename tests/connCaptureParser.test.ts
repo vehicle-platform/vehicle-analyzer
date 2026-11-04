@@ -138,6 +138,68 @@ describe('parseConnCapture', () => {
     expect(summary.restarts).toBe(0);
   });
 
+  it('keeps FINAL seen when S blocks follow it, and shows the later block', () => {
+    const text = [
+      'F,1000000,100,S,1,00',
+      'FINAL,300000000,100,S,1,-,-,-',
+      'FINAL,END,300000000,frames=1,ids=1,overflow=0,lost=0,dropped=0',
+      'F,305000000,100,S,1,00',
+      'S,310000000,100,S,2,304000.000,304000.000,-',
+      'S,END,310000000,frames=2,ids=1,overflow=0,lost=0,dropped=0',
+    ].join('\n');
+    const { summary } = parseConnCapture(text);
+    expect(summary.finalSeen).toBe(true);
+    expect(summary.block).toMatchObject({ final: false, timeUs: 310_000_000, end: { frames: 2 } });
+  });
+
+  it('reads a summary block interleaved with frame lines', () => {
+    const text = [
+      'F,10000000,100,S,1,00',
+      'S,10000000,100,S,2,-,-,-',
+      'F,10001000,200,S,1,00',
+      'S,10000000,200,S,1,-,-,-',
+      'S,END,10000000,frames=3,ids=2,overflow=0,lost=0,dropped=0',
+    ].join('\n');
+    const { frames, summary } = parseConnCapture(text);
+    expect(frames).toHaveLength(2);
+    expect(summary.block?.rows.map((r) => r.id)).toEqual([0x100, 0x200]);
+  });
+
+  it('ignores a block whose rows do not match its ids count', () => {
+    const text = [
+      'S,10000000,100,S,1,-,-,-',
+      'S,END,10000000,frames=1,ids=1,overflow=0,lost=0,dropped=0',
+      'S,20000000,100,S,1,-,-,-',
+      'S,END,20000000,frames=2,ids=2,overflow=0,lost=0,dropped=0',
+    ].join('\n');
+    const { summary } = parseConnCapture(text);
+    expect(summary.block?.timeUs).toBe(10_000_000);
+  });
+
+  it('starts a new run at a repeated banner and keeps each run\'s last block', () => {
+    const text = [
+      BANNER,
+      'F,200000,100,S,1,00',
+      'S,10000000,7FF,S,1,-,-,W',
+      'S,END,10000000,frames=1,ids=1,overflow=0,lost=3,dropped=0',
+      'garbage after a brown-out',
+      BANNER,
+      'F,300000,100,S,1,00',
+      'S,10000000,100,S,1,-,-,-',
+      'S,END,10000000,frames=1,ids=1,overflow=0,lost=0,dropped=0',
+    ].join('\n');
+    const { frames, summary } = parseConnCapture(text);
+    expect(summary.restarts).toBe(1);
+    expect(frames.map((f) => f.timestamp)).toEqual([0.2, 0.200001]);
+    expect(summary.runBlocks.map((b) => b.end.lost)).toEqual([3, 0]);
+    expect(summary.block?.rows[0].id).toBe(0x100);
+  });
+
+  it('counts a banner and a backward jump of the same reset once', () => {
+    const text = [BANNER, 'F,5000000,100,S,1,00', BANNER, 'F,0,100,S,1,00'].join('\n');
+    expect(parseConnCapture(text).summary.restarts).toBe(1);
+  });
+
   it('returns an empty summary for an empty file', () => {
     const { frames, summary } = parseConnCapture('');
     expect(frames).toEqual([]);
@@ -148,6 +210,8 @@ describe('parseConnCapture', () => {
       malformedFrames: 0,
       restarts: 0,
       durationS: 0,
+      finalSeen: false,
+      runBlocks: [],
       block: null,
     });
   });
