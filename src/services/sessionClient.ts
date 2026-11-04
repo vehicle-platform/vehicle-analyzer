@@ -116,6 +116,42 @@ export interface RideClientConfig {
   fetchFn?: FetchLike;
 }
 
+export type BringupGate = 'B0' | 'V0' | 'V1';
+export const BRINGUP_GATES: readonly BringupGate[] = ['B0', 'V0', 'V1'];
+export type BringupVerdict = 'pass' | 'fail' | 'incomplete';
+export type BringupStatus = 'pass' | 'fail' | 'warn' | 'manual' | 'unknown';
+const BRINGUP_VERDICTS: readonly BringupVerdict[] = ['pass', 'fail', 'incomplete'];
+const BRINGUP_STATUSES: readonly BringupStatus[] = ['pass', 'fail', 'warn', 'manual', 'unknown'];
+
+export interface BringupCheck {
+  id: string;
+  status: BringupStatus;
+  /** Any JSON the server measured (null, number, object); shown, never re-computed. */
+  measured: unknown;
+  expected: string;
+  source: string;
+  note: string;
+}
+
+export interface BringupResult {
+  sessionId: string;
+  gate: BringupGate;
+  verdict: BringupVerdict;
+  checks: BringupCheck[];
+  /** Ids of the manual checks still pending. */
+  needsYou: string[];
+  /** Ids of the warn checks. */
+  warnings: string[];
+}
+
+/** The server has no GET /sessions/{id}/bringup route (a vehicle-server older than LR12). */
+export class BringupUnsupportedError extends Error {
+  constructor() {
+    super('this server has no bring-up check (needs vehicle-server with LR12)');
+    this.name = 'BringupUnsupportedError';
+  }
+}
+
 export class NoRideSummaryError extends Error {
   constructor() {
     super('No stored ride summary for this session.');
@@ -430,6 +466,9 @@ export const ridesRequest = (base: string, token: string, q: RidesQuery = {}): B
     names: q.names && q.names.length > 0 ? q.names.join(',') : undefined,
   });
 
+export const bringupRequest = (base: string, token: string, id: string, gate: BringupGate): BuiltRequest =>
+  buildRequest(base, token, `/sessions/${encodeURIComponent(id)}/bringup`, { gate });
+
 async function readDetail(res: Response): Promise<string> {
   try {
     const body = JSON.parse(await res.text()) as unknown;
@@ -454,6 +493,67 @@ export async function fetchRides(cfg: RideClientConfig, query: RidesQuery = {}):
   return parseRidesResponse(await getJson(ridesRequest(cfg.serverUrl, cfg.token, query), cfg.fetchFn ?? defaultFetch));
 }
 
+const malformedBringup = (why: string): never => {
+  throw new Error(`Malformed bring-up result: ${why}.`);
+};
+
+/** Strict parser: the verdict and every check are shown as the server sent them. */
+export function parseBringupResult(json: unknown): BringupResult {
+  if (!isRecord(json)) return malformedBringup('root is not an object');
+  if (typeof json.session_id !== 'string') return malformedBringup('missing session_id');
+  if (typeof json.gate !== 'string' || !(BRINGUP_GATES as readonly string[]).includes(json.gate)) return malformedBringup('unknown gate');
+  if (typeof json.verdict !== 'string' || !(BRINGUP_VERDICTS as readonly string[]).includes(json.verdict)) return malformedBringup('unknown verdict');
+  if (!Array.isArray(json.checks)) return malformedBringup('checks is not a list');
+  const checks: BringupCheck[] = json.checks.map((raw, index) => {
+    if (!isRecord(raw) || typeof raw.id !== 'string' || raw.id === '') return malformedBringup(`checks[${index}] has no id`);
+    if (typeof raw.status !== 'string' || !(BRINGUP_STATUSES as readonly string[]).includes(raw.status)) {
+      return malformedBringup(`${raw.id} has an unknown status`);
+    }
+    return {
+      id: raw.id,
+      status: raw.status as BringupStatus,
+      measured: raw.measured ?? null,
+      expected: typeof raw.expected === 'string' ? raw.expected : '',
+      source: typeof raw.source === 'string' ? raw.source : '',
+      note: typeof raw.note === 'string' ? raw.note : '',
+    };
+  });
+  if (!stringList(json.needs_you)) return malformedBringup('needs_you is not a list of strings');
+  if (!stringList(json.warnings)) return malformedBringup('warnings is not a list of strings');
+  return {
+    sessionId: json.session_id,
+    gate: json.gate as BringupGate,
+    verdict: json.verdict as BringupVerdict,
+    checks,
+    needsYou: json.needs_you,
+    warnings: json.warnings,
+  };
+}
+
+/** Compact text of a measured value: null = "—", object = key=value pairs, nested objects as short JSON. */
+export function formatBringupMeasured(value: unknown): string {
+  if (value === null || value === undefined) return '—';
+  if (typeof value === 'number') return String(Math.round(value * 10000) / 10000);
+  if (typeof value === 'string' || typeof value === 'boolean') return String(value);
+  if (isRecord(value)) {
+    return Object.entries(value)
+      .map(([k, v]) => `${k}=${typeof v === 'object' && v !== null ? JSON.stringify(v) : formatBringupMeasured(v)}`)
+      .join(' ');
+  }
+  return JSON.stringify(value);
+}
+
+/**
+ * Reads the server's bring-up gate check. A 404 whose detail is just "Not Found" means the route
+ * is missing (older server); "unknown session: <id>" stays a normal error.
+ */
+export async function fetchBringup(cfg: RideClientConfig, sessionId: string, gate: BringupGate): Promise<BringupResult> {
+  const json = await getJson(bringupRequest(cfg.serverUrl, cfg.token, sessionId, gate), cfg.fetchFn ?? defaultFetch, async (res) => {
+    if (res.status === 404 && (await readDetail(res)).trim().toLowerCase() === 'not found') throw new BringupUnsupportedError();
+  });
+  return parseBringupResult(json);
+}
+
 export class SessionClient {
   constructor(
     private baseUrl: string,
@@ -475,6 +575,10 @@ export class SessionClient {
 
   public async getRideSummary(id: string): Promise<RideSummary> {
     return fetchRideSummary({ serverUrl: this.baseUrl, token: this.token, fetchFn: this.fetchFn }, id);
+  }
+
+  public async getBringup(id: string, gate: BringupGate): Promise<BringupResult> {
+    return fetchBringup({ serverUrl: this.baseUrl, token: this.token, fetchFn: this.fetchFn }, id, gate);
   }
 
   public async getRides(q: RidesQuery = {}): Promise<RidesResponse> {
