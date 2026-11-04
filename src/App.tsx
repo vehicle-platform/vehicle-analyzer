@@ -13,6 +13,7 @@ import { SessionPanel } from './components/SessionPanel';
 import { ComparePanel } from './components/ComparePanel';
 import { TrackPanel } from './components/TrackPanel';
 import { RideHistoryPanel } from './components/RideHistoryPanel';
+import { CoveragePanel } from './components/CoveragePanel';
 import { ReplayItem, framesToItems, mergeSamples, replayMatchesSession } from './services/replay';
 import { DEFAULT_SERVER_URL, RecordedSeries, mapSeriesKey } from './services/sessionClient';
 import { BusRole, CanFrame, CockpitTab, TelemetrySource } from './types/can';
@@ -386,6 +387,7 @@ export function App() {
           a: () => setActiveTab('compare'),
           g: () => setActiveTab('track'),
           n: () => setActiveTab('rides'),
+          i: () => setActiveTab('coverage'),
           ' ': togglePause,
           c: handleClear,
           x: () => setShowAttitudeHud((v) => !v),
@@ -506,6 +508,15 @@ export function App() {
                 onOpenSession={openRecordedSession}
               />
             )}
+            {activeTab === 'coverage' && (
+              <CoveragePanel
+                token={wsToken}
+                onTokenChange={handleTokenChange}
+                serverUrl={serverUrl}
+                onServerUrlChange={setServerUrl}
+                selectedSessionId={recordedSessionId}
+              />
+            )}
             {activeTab === 'sync' && <SyncPanel store={store} source={source} onLogLoaded={handleLogLoaded} />}
           </main>
 
@@ -575,6 +586,7 @@ const HELP: HelpGroup[] = [
       { k: 'A', label: 'Compare two sessions' },
       { k: 'G', label: 'Ride track' },
       { k: 'N', label: 'Ride history' },
+      { k: 'I', label: 'Signal coverage' },
     ],
   },
   {

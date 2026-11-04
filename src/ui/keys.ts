@@ -9,7 +9,7 @@ import { useEffect, useRef } from 'react';
 export type KeyBindings = Record<string, (e: KeyboardEvent) => void>;
 
 /** Keys owned by App; panel-local bindings must not reuse them. */
-export const GLOBAL_KEYS = ['t', 's', 'o', 'u', 'h', 'f', 'd', 'e', 'a', 'g', 'n', ' ', 'c', 'x', 'l', '/', '?', 'Escape'] as const;
+export const GLOBAL_KEYS = ['t', 's', 'o', 'u', 'h', 'f', 'd', 'e', 'a', 'g', 'n', 'i', ' ', 'c', 'x', 'l', '/', '?', 'Escape'] as const;
 
 /** Attribute that marks the input `/` focuses in the active panel. */
 export const FILTER_ATTR = 'data-hotkey-filter';

@@ -46,6 +46,7 @@ export const TABS: { id: CockpitTab; key: string; label: string }[] = [
   { id: 'compare', key: 'A', label: 'Compare' },
   { id: 'track', key: 'G', label: 'Ride track' },
   { id: 'rides', key: 'N', label: 'Ride history' },
+  { id: 'coverage', key: 'I', label: 'Signal coverage' },
 ];
 
 const SOURCES: { value: TelemetrySource; label: string; title: string }[] = [
