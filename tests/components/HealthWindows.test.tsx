@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
-import { HealthWindows } from '../../src/components/HealthWindows';
+import { HealthWindows as HealthWindowsView } from '../../src/components/HealthWindows';
+import { RideSummary, useRideSummary } from '../../src/components/RideSummary';
 import { jsonResponse } from './helpers';
 
 const instance = {
@@ -43,6 +44,15 @@ const summary = {
     { name: 'window_warm_idle_count', status: 'computed', unit: 'count', range: [0, 10], kind: 'scalar', value: 1, flag: null },
     { name: 'window_key_on_rest_voltage', status: 'not_ready', reason: 'no key-on window' },
   ],
+};
+
+/** Test harness: the parent (SessionPanel) owns the /summary fetch and feeds the card. */
+const HealthWindows: React.FC<{ token: string; serverUrl: string; sessionId: string | null; report: unknown; sessionEndMs?: number | null }> = ({
+  token,
+  ...rest
+}) => {
+  const { state } = useRideSummary(token, rest.serverUrl, rest.sessionId);
+  return <HealthWindowsView {...rest} summary={state} />;
 };
 
 const props = (over: Partial<React.ComponentProps<typeof HealthWindows>> = {}) => ({
@@ -100,5 +110,23 @@ describe('HealthWindows', () => {
     render(<HealthWindows {...props({ sessionEndMs: null })} />);
     expect(await screen.findByText(/100.00/)).toBeTruthy();
     expect(screen.getByLabelText('Health windows').textContent).toContain('0–45.0 s');
+  });
+
+  it('makes one /summary request when the ride summary and the health windows are both shown', async () => {
+    const fetchMock = vi.fn(async () => jsonResponse(summary));
+    vi.stubGlobal('fetch', fetchMock);
+    const Both: React.FC = () => {
+      const { state, retry } = useRideSummary('', 'http://localhost:8000', 'ride-1');
+      return (
+        <>
+          <RideSummary serverUrl="http://localhost:8000" sessionId="ride-1" state={state} onRetry={retry} />
+          <HealthWindowsView serverUrl="http://localhost:8000" sessionId="ride-1" report={report} summary={state} sessionEndMs={60_000} />
+        </>
+      );
+    };
+    render(<Both />);
+    expect((await screen.findAllByText('100.00')).length).toBeGreaterThan(0);
+    const summaryCalls = fetchMock.mock.calls.filter(([input]) => String(input).includes('/summary'));
+    expect(summaryCalls).toHaveLength(1);
   });
 });

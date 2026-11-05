@@ -70,4 +70,23 @@ describe('parseHealthWindows', () => {
       bad({ rule: 'r', t0_device_ms: 0, windows: { W3_WARM_IDLE: { qualifying_count: 1, instances: [{ ...instance, qualifies: 'yes' }] } } })
     ).toEqual({ ok: false, reason: 'malformed: windows.W3_WARM_IDLE.instances[0].qualifies is not a boolean' });
   });
+
+  const withInstances = (instances: unknown[]) => ({
+    derived_summary: { health_windows: { rule: 'r', t0_device_ms: 0, windows: { W3_WARM_IDLE: { qualifying_count: 1, instances } } } },
+  });
+
+  it('rejects an instance whose duration_ms is not end_ms - start_ms', () => {
+    const parsed = parseHealthWindows(withInstances([{ ...instance, duration_ms: 26_999 }]), DEFS);
+    expect(parsed.ok).toBe(false);
+    if (parsed.ok) return;
+    expect(parsed.reason).toMatch(/^malformed: .*duration_ms does not equal end_ms - start_ms/);
+  });
+
+  it('rejects a window with more than one first_qualifying instance', () => {
+    const second = { ...instance, start_ms: 40_000, end_ms: 45_000, duration_ms: 5_000 };
+    const parsed = parseHealthWindows(withInstances([instance, second]), DEFS);
+    expect(parsed.ok).toBe(false);
+    if (parsed.ok) return;
+    expect(parsed.reason).toMatch(/^malformed: .*more than one first_qualifying/);
+  });
 });

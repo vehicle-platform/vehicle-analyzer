@@ -481,6 +481,7 @@ export function App() {
                 onLoad={handleSessionLoaded}
                 onSelect={setRecordedSessionId}
                 selectedSessionId={recordedSessionId}
+                // Replay times are /series `t_ms / 1000` (same t0 as the report window instances).
                 sessionEndMs={replaySessionId !== null && replaySessionId === recordedSessionId ? Math.round(store.lastTime * 1000) : null}
               />
             )}

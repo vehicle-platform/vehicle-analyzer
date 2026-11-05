@@ -80,4 +80,6 @@ test('Health windows card shows the report instances and stays on the app and co
   });
   expect(foreign).toEqual([]);
   expect(requests.filter((url) => url.startsWith(SERVER))).toContain(`${SERVER}/sessions/ride-1/report`);
+  // The ride summary and the health windows share one /summary request.
+  expect(requests.filter((url) => url === `${SERVER}/sessions/ride-1/summary`)).toHaveLength(1);
 });

@@ -46,6 +46,7 @@ function parseInstance(value: unknown, where: string): HealthWindowInstance | st
   if (!isInteger(end_ms)) return `${where}.end_ms is not an integer`;
   if (end_ms < start_ms) return `${where}.end_ms is before start_ms`;
   if (!isInteger(duration_ms)) return `${where}.duration_ms is not an integer`;
+  if (duration_ms !== end_ms - start_ms) return `${where}.duration_ms does not equal end_ms - start_ms`;
   if (typeof close_reason !== 'string') return `${where}.close_reason is not a string`;
   if (typeof qualifies !== 'boolean') return `${where}.qualifies is not a boolean`;
   if (typeof first_qualifying !== 'boolean') return `${where}.first_qualifying is not a boolean`;
@@ -85,6 +86,9 @@ export function parseHealthWindows(report: unknown, defs: Pick<Defs, 'windows'>)
       const instance = parseInstance(value.instances[index], `${where}.instances[${index}]`);
       if (typeof instance === 'string') return malformed(instance);
       instances.push(instance);
+    }
+    if (instances.filter((instance) => instance.firstQualifying).length > 1) {
+      return malformed(`${where} has more than one first_qualifying instance`);
     }
     windows.push({
       key,

@@ -1,23 +1,20 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useMemo } from 'react';
 import { DEFS } from '../defs';
 import type { HealthWindowDef } from '../defs/model';
 import { Na, Note, cn } from '../ui/primitives';
 import { TD, TH } from '../ui/panel-parts';
-import {
-  NoRideSummaryError,
-  fetchRideSummary,
-  type RideSummary as RideSummaryData,
-  type RideSummarySignal,
-} from '../services/sessionClient';
+import type { RideSummarySignal } from '../services/sessionClient';
+import type { SummaryState } from './RideSummary';
 import { formatRideValue } from '../services/rideSummaryLayout';
 import { parseHealthWindows, type HealthWindowInstances } from '../services/healthWindows';
 
 interface HealthWindowsProps {
-  token: string;
   serverUrl: string;
   sessionId: string | null;
   /** The report view E already fetched; no second report request. */
   report: unknown;
+  /** The ride-summary fetch state, owned by the parent so /summary is requested once per session. */
+  summary: SummaryState;
   /** Last replay sample of this session in ms on the `/series` t0 axis, when E has it. */
   sessionEndMs?: number | null;
 }
@@ -40,6 +37,19 @@ const signalText = (signal: RideSummarySignal, defsUnit: string): { value: React
   }
   if (signal.kind !== 'scalar') return { value: <Na />, unit: signal.unit, flag: signal.kind };
   return { value: formatRideValue(signal.value, signal.range), unit: signal.unit, flag: signal.flag ?? '—' };
+};
+
+const summaryNoteOf = (state: SummaryState, usable: boolean, canFetch: boolean): string => {
+  if (usable) return '';
+  if (!canFetch) return 'No vehicle-server URL configured.';
+  switch (state.kind) {
+    case 'none':
+      return 'No stored ride summary for this session.';
+    case 'error':
+      return `Ride summary: ${state.message}`;
+    default:
+      return 'Loading computed window signals...';
+  }
 };
 
 const InstanceTable: React.FC<{ windowKey: string; entry: HealthWindowInstances }> = ({ windowKey, entry }) => {
@@ -74,44 +84,10 @@ const InstanceTable: React.FC<{ windowKey: string; entry: HealthWindowInstances 
 };
 
 /** D-079 health-window instances from the report, rendered verbatim; nothing is re-computed. */
-export const HealthWindows: React.FC<HealthWindowsProps> = ({ token, serverUrl, sessionId, report, sessionEndMs }) => {
+export const HealthWindows: React.FC<HealthWindowsProps> = ({ serverUrl, sessionId, report, summary: summaryState, sessionEndMs }) => {
   const parsed = useMemo(() => parseHealthWindows(report, DEFS), [report]);
-  const [summary, setSummary] = useState<RideSummaryData | null>(null);
-  const [summaryNote, setSummaryNote] = useState('Loading computed window signals...');
-  const connection = useRef({ serverUrl, token });
-  connection.current = { serverUrl, token };
-  const hasServer = serverUrl.trim() !== '';
-
-  useEffect(() => {
-    if (!sessionId || !hasServer) {
-      setSummary(null);
-      setSummaryNote('No vehicle-server URL configured.');
-      return;
-    }
-    let cancelled = false;
-    setSummary(null);
-    setSummaryNote('Loading computed window signals...');
-    fetchRideSummary({ serverUrl: connection.current.serverUrl, token: connection.current.token }, sessionId)
-      .then((value) => {
-        if (!cancelled) {
-          setSummary(value);
-          setSummaryNote('');
-        }
-      })
-      .catch((error: unknown) => {
-        if (cancelled) return;
-        setSummaryNote(
-          error instanceof NoRideSummaryError
-            ? 'No stored ride summary for this session.'
-            : error instanceof Error
-              ? `Ride summary: ${error.message}`
-              : 'Ride summary request failed.'
-        );
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [sessionId, hasServer]);
+  const summary = summaryState.kind === 'loaded' && summaryState.summary.sessionId === sessionId ? summaryState.summary : null;
+  const summaryNote = summaryNoteOf(summaryState, summary !== null, serverUrl.trim() !== '' && sessionId !== null);
 
   if (report === null) {
     return (
@@ -141,6 +117,9 @@ export const HealthWindows: React.FC<HealthWindowsProps> = ({ token, serverUrl, 
     (latest, entry) => entry.instances.reduce((inner, instance) => Math.max(inner, instance.endMs), latest),
     0
   );
+  // sessionEndMs comes from the replay store, built from GET /sessions/{id}/series as
+  // `t_ms / 1000` seconds since that response's t0_device_ms, and the report instances are on the
+  // same t0 axis; so the two share one axis and no offset is applied here.
   const spanMs = Math.max(1, sessionEndMs !== null && sessionEndMs !== undefined ? sessionEndMs : 0, lastInstanceEnd);
   const signalByName = new Map(summary?.signals.map((signal) => [signal.name, signal]) ?? []);
   const x = (ms: number): number => Math.max(0, Math.min(TIMELINE_WIDTH, (ms / spanMs) * TIMELINE_WIDTH));
@@ -244,7 +223,8 @@ export const HealthWindows: React.FC<HealthWindowsProps> = ({ token, serverUrl, 
                   <InstanceTable windowKey={window.key} entry={entry} />
                 </div>
               )}
-              {summary && (
+              {summary && signals.length === 0 && <Note className="py-1">No computed signals for this window.</Note>}
+              {summary && signals.length > 0 && (
                 <table className="mt-1 w-full border-collapse" aria-label={`${window.key} computed signals`}>
                   <thead>
                     <tr>

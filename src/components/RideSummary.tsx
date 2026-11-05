@@ -20,12 +20,14 @@ import {
 } from '../services/rideSummaryLayout';
 
 interface RideSummaryProps {
-  token: string;
   serverUrl: string;
   sessionId: string | null;
+  /** Fetch state owned by the parent (`useRideSummary`), shared with the health-window card. */
+  state: SummaryState;
+  onRetry: () => void;
 }
 
-type SummaryState =
+export type SummaryState =
   | { kind: 'idle' }
   | { kind: 'loading' }
   | { kind: 'none' }
@@ -227,8 +229,11 @@ const SignalList: React.FC<{ summary: RideSummaryData }> = ({ summary }) => {
   );
 };
 
-/** Stored class-B ride summary of the selected session (RS-5). */
-export const RideSummary: React.FC<RideSummaryProps> = ({ token, serverUrl, sessionId }) => {
+/**
+ * Fetches GET /sessions/{id}/summary once per selected session. The parent owns it and hands the
+ * state to every card that shows the summary (ride summary, health windows): one request, not two.
+ */
+export function useRideSummary(token: string, serverUrl: string, sessionId: string | null): { state: SummaryState; retry: () => void } {
   const [state, setState] = useState<SummaryState>({ kind: 'idle' });
   const [nonce, setNonce] = useState(0);
   const connection = useRef({ serverUrl, token });
@@ -255,6 +260,13 @@ export const RideSummary: React.FC<RideSummaryProps> = ({ token, serverUrl, sess
     };
   }, [sessionId, hasServer, nonce]);
 
+  return { state, retry: () => setNonce((value) => value + 1) };
+}
+
+/** Stored class-B ride summary of the selected session (RS-5). */
+export const RideSummary: React.FC<RideSummaryProps> = ({ serverUrl, sessionId, state, onRetry }) => {
+  const hasServer = serverUrl.trim() !== '';
+
   if (!sessionId) return <Empty>No recorded session selected.</Empty>;
   if (!hasServer) return <Empty>No vehicle-server URL configured.</Empty>;
   if (state.kind === 'idle' || state.kind === 'loading') return <Empty>Loading ride summary...</Empty>;
@@ -265,7 +277,7 @@ export const RideSummary: React.FC<RideSummaryProps> = ({ token, serverUrl, sess
         <div role="alert" className="text-term-red">
           ■ {state.message}
         </div>
-        <TermButton className="mt-1" onClick={() => setNonce((value) => value + 1)}>
+        <TermButton className="mt-1" onClick={onRetry}>
           Retry
         </TermButton>
       </div>

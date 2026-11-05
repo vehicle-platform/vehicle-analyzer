@@ -3,7 +3,7 @@ import { Note, Segmented, TermButton, TermInput, Toolbar, cn } from '../ui/primi
 import { Empty, GutterMark, ListHead } from '../ui/panel-parts';
 import { useHotkeys } from '../ui/keys';
 import { RecordedSeries, SessionClient, SessionRow, sessionRowInfo, summarizeReport } from '../services/sessionClient';
-import { RideSummary } from './RideSummary';
+import { RideSummary, useRideSummary } from './RideSummary';
 import { HealthWindows } from './HealthWindows';
 import { BringupCheck } from './BringupCheck';
 import {
@@ -35,6 +35,7 @@ interface SessionPanelProps {
 export const SessionPanel: React.FC<SessionPanelProps> = ({ token, onTokenChange, serverUrl, onServerUrlChange, onLoad, onSelect, selectedSessionId, sessionEndMs }) => {
   const [sessions, setSessions] = useState<SessionRow[]>([]);
   const [selected, setSelected] = useState<string | null>(selectedSessionId ?? null);
+  const rideSummary = useRideSummary(token, serverUrl, selected);
   const [report, setReport] = useState<unknown | null>(null);
   const [status, setStatus] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
@@ -253,9 +254,9 @@ export const SessionPanel: React.FC<SessionPanelProps> = ({ token, onTokenChange
               <ListHead>bring-up check</ListHead>
               <BringupCheck token={token} serverUrl={serverUrl} sessionId={selected} />
               <ListHead>ride summary</ListHead>
-              <RideSummary token={token} serverUrl={serverUrl} sessionId={selected} />
+              <RideSummary serverUrl={serverUrl} sessionId={selected} state={rideSummary.state} onRetry={rideSummary.retry} />
               <ListHead>health windows</ListHead>
-              <HealthWindows token={token} serverUrl={serverUrl} sessionId={selected} report={report} sessionEndMs={sessionEndMs} />
+              <HealthWindows serverUrl={serverUrl} sessionId={selected} report={report} summary={rideSummary.state} sessionEndMs={sessionEndMs} />
             </>
           ) : (
             <Empty>Select a session.</Empty>
