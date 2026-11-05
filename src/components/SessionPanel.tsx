@@ -4,6 +4,7 @@ import { Empty, GutterMark, ListHead } from '../ui/panel-parts';
 import { useHotkeys } from '../ui/keys';
 import { RecordedSeries, SessionClient, SessionRow, sessionRowInfo, summarizeReport } from '../services/sessionClient';
 import { RideSummary } from './RideSummary';
+import { HealthWindows } from './HealthWindows';
 import { BringupCheck } from './BringupCheck';
 import {
   SessionFilter,
@@ -26,13 +27,15 @@ interface SessionPanelProps {
   /** Reports the selected/opened session so the Track view can use it. */
   onSelect?: (id: string | null) => void;
   selectedSessionId?: string | null;
+  /** Last replay sample of the selected session in ms on the `/series` t0 axis, when E has it. */
+  sessionEndMs?: number | null;
 }
 
 /** Browser for recorded vehicle-server sessions (read-only HTTP, token in the Authorization header only). */
-export const SessionPanel: React.FC<SessionPanelProps> = ({ token, onTokenChange, serverUrl, onServerUrlChange, onLoad, onSelect, selectedSessionId }) => {
+export const SessionPanel: React.FC<SessionPanelProps> = ({ token, onTokenChange, serverUrl, onServerUrlChange, onLoad, onSelect, selectedSessionId, sessionEndMs }) => {
   const [sessions, setSessions] = useState<SessionRow[]>([]);
   const [selected, setSelected] = useState<string | null>(selectedSessionId ?? null);
-  const [report, setReport] = useState<{ key: string; value: string }[] | null>(null);
+  const [report, setReport] = useState<unknown | null>(null);
   const [status, setStatus] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<boolean>(false);
@@ -47,6 +50,7 @@ export const SessionPanel: React.FC<SessionPanelProps> = ({ token, onTokenChange
   }, [selectedSessionId]);
 
   const client = useMemo(() => new SessionClient(serverUrl, token), [serverUrl, token]);
+  const reportRows = useMemo(() => (report === null ? null : summarizeReport(report)), [report]);
   const visible = useMemo(() => filterSessions(sessions, filter), [sessions, filter]);
   const statuses = useMemo(() => sessionStatuses(sessions, filter.statuses), [sessions, filter.statuses]);
 
@@ -74,7 +78,7 @@ export const SessionPanel: React.FC<SessionPanelProps> = ({ token, onTokenChange
     onSelect?.(id);
     setReport(null);
     void run(async () => {
-      setReport(summarizeReport(await client.getReport(id)));
+      setReport(await client.getReport(id));
     });
   };
 
@@ -232,13 +236,13 @@ export const SessionPanel: React.FC<SessionPanelProps> = ({ token, onTokenChange
                 <Note className="mt-1 text-term-faint">Open replays through the transport below; Oscilloscope (O) and Cluster (F) show the values as it advances.</Note>
               </div>
               <ListHead>report summary</ListHead>
-              {report === null ? (
+              {reportRows === null ? (
                 <Empty>{busy ? 'Loading report...' : 'No report.'}</Empty>
-              ) : report.length === 0 ? (
+              ) : reportRows.length === 0 ? (
                 <Empty>The report has no scalar fields to summarise.</Empty>
               ) : (
                 <dl className="px-[14px] py-2">
-                  {report.map((r) => (
+                  {reportRows.map((r) => (
                     <div key={r.key} className="flex gap-[2ch]">
                       <dt className="w-[28ch] shrink-0 truncate text-term-dim">{r.key}</dt>
                       <dd className="min-w-0 truncate text-term-fg">{r.value}</dd>
@@ -250,6 +254,8 @@ export const SessionPanel: React.FC<SessionPanelProps> = ({ token, onTokenChange
               <BringupCheck token={token} serverUrl={serverUrl} sessionId={selected} />
               <ListHead>ride summary</ListHead>
               <RideSummary token={token} serverUrl={serverUrl} sessionId={selected} />
+              <ListHead>health windows</ListHead>
+              <HealthWindows token={token} serverUrl={serverUrl} sessionId={selected} report={report} sessionEndMs={sessionEndMs} />
             </>
           ) : (
             <Empty>Select a session.</Empty>

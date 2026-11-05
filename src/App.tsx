@@ -481,6 +481,7 @@ export function App() {
                 onLoad={handleSessionLoaded}
                 onSelect={setRecordedSessionId}
                 selectedSessionId={recordedSessionId}
+                sessionEndMs={replaySessionId !== null && replaySessionId === recordedSessionId ? Math.round(store.lastTime * 1000) : null}
               />
             )}
             {activeTab === 'compare' && (
