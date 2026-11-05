@@ -166,6 +166,9 @@ const SignalList: React.FC<{ summary: RideSummaryData }> = ({ summary }) => {
             <span className="text-term-faint">{signal.unit}</span>
             <span className="ml-auto text-term-dim">range {signal.range[0]}…{signal.range[1]}</span>
           </div>
+          {signal.gears.length === 0 ? (
+            <Note className="py-1">No gear stored for this ride.</Note>
+          ) : (
           <table className="w-full border-collapse" aria-label={`${signal.name} per gear`}>
             <thead>
               <tr>
@@ -188,6 +191,7 @@ const SignalList: React.FC<{ summary: RideSummaryData }> = ({ summary }) => {
               ))}
             </tbody>
           </table>
+          )}
         </section>
       ))}
 

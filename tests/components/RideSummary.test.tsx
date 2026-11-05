@@ -174,6 +174,18 @@ describe('RideSummary loaded state', () => {
     expect(screen.queryByRole('alert')).toBeNull();
   });
 
+  it('says so when a per-gear signal stored no gear', async () => {
+    const empty = {
+      ...summary,
+      signals: [{ name: 'ride_final_drive_ratio', status: 'computed', unit: 'ratio', range: [2, 3.5], kind: 'per_gear', gears: [] }],
+    };
+    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse(empty)));
+    render(<RideSummary {...props()} />);
+
+    expect(await screen.findByText('No gear stored for this ride.')).toBeTruthy();
+    expect(screen.queryByRole('table', { name: 'ride_final_drive_ratio per gear' })).toBeNull();
+  });
+
   it('fetches once per selected session, not per render or URL keystroke', async () => {
     const fetchMock = vi.fn(async () => jsonResponse(summary));
     vi.stubGlobal('fetch', fetchMock);
