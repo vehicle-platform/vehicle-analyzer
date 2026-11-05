@@ -44,6 +44,67 @@ describe('ComparePanel', () => {
     expect(fetchMock).toHaveBeenCalledTimes(5);
   });
 
+  it('shows one row per gear present in A or B and a difference only with two values', async () => {
+    const did = DEFS.vehicle.dids[0];
+    const series = (values: number[]) => ({
+      session_id: 'session',
+      max_points: 2000,
+      series: [{ name: `did.${did.name}`, kind: 'did', unit: did.unit, t_ms: [0, 1000], v: values }],
+    });
+    const summary = (sessionId: string, gears: { gear: number; value: number | null; flag: string | null }[]) => ({
+      session_id: sessionId,
+      ride_definition: 'cl250_ride',
+      defs_version: '1.2.0',
+      signals: [
+        {
+          name: 'ride_final_drive_ratio',
+          status: 'computed',
+          unit: 'ratio',
+          range: [2, 3.5],
+          kind: 'per_gear',
+          gears,
+        },
+      ],
+    });
+    const fetchMock = vi.fn(async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url.endsWith('/sessions')) return jsonResponse([{ session_id: 'A' }, { session_id: 'B' }]);
+      if (url.includes('/sessions/A/series')) return jsonResponse(series([1, 2]));
+      if (url.includes('/sessions/B/series')) return jsonResponse(series([2, 3]));
+      if (url.includes('/sessions/A/summary')) {
+        return jsonResponse(summary('A', [
+          { gear: 1, value: 2.64, flag: null },
+          { gear: 2, value: 2.7, flag: null },
+        ]));
+      }
+      if (url.includes('/sessions/B/summary')) {
+        return jsonResponse(summary('B', [
+          { gear: 1, value: 2.5, flag: null },
+          { gear: 3, value: 2.9, flag: null },
+        ]));
+      }
+      return jsonResponse({});
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<ComparePanel token="" onTokenChange={vi.fn()} serverUrl="http://localhost:8000" onServerUrlChange={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: /Refresh/ }));
+    await screen.findByText('2 sessions on the server.');
+    fireEvent.change(screen.getByLabelText('Session A'), { target: { value: 'A' } });
+    fireEvent.change(screen.getByLabelText('Session B'), { target: { value: 'B' } });
+    fireEvent.click(screen.getByRole('button', { name: /Compare/ }));
+
+    expect(await screen.findByRole('table', { name: 'Ride summaries A vs B' })).toBeTruthy();
+    const row = (gear: number) => screen.getByText(`ride_final_drive_ratio gear ${gear}`).closest('tr');
+    expect(row(1)?.textContent).toContain('2.6400');
+    expect(row(1)?.textContent).toContain('2.5000');
+    expect(row(1)?.textContent).toContain('-0.1400');
+    expect(row(2)?.textContent).toContain('2.7000');
+    expect(row(2)?.textContent).toContain('–');
+    expect(row(3)?.textContent).toContain('2.9000');
+    expect(row(3)?.textContent).toContain('–');
+  });
+
   it('shows an A vs B ride-summary table and statuses for non-computed rows', async () => {
     const did = DEFS.vehicle.dids[0];
     const series = (values: number[]) => ({

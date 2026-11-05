@@ -23,6 +23,17 @@ const SUMMARY = {
       total_s: 900,
       outside_s: 3,
     },
+    {
+      name: 'ride_final_drive_ratio',
+      status: 'computed',
+      unit: 'ratio',
+      range: [2, 3.5],
+      kind: 'per_gear',
+      gears: [
+        { gear: 1, value: 2.64, flag: null },
+        { gear: 4, value: null, flag: 'no_steady_samples' },
+      ],
+    },
     { name: 'ride_fuel_used', status: 'missing_inputs', missing: ['did.FUEL_RATE'] },
   ],
 };
@@ -100,6 +111,10 @@ test('Sessions view shows the stored ride summary of the selected session', asyn
   await expect(scalars).toContainText('ride_distance');
   await expect(scalars).toContainText('km');
   await expect(page.getByRole('img', { name: 'ride_coolant_time_at_temp bins' })).toBeVisible();
+  const perGear = page.getByRole('table', { name: 'ride_final_drive_ratio per gear' });
+  await expect(perGear).toContainText('gear 1');
+  await expect(perGear).toContainText('2.6400');
+  await expect(perGear).toContainText('no_steady_samples');
 
   const verdict = page.getByLabel('Bring-up verdict');
   await expect(verdict).toContainText('V0 incomplete');

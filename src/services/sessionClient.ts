@@ -55,6 +55,21 @@ export interface RideSummaryScalar {
   flag: string | null;
 }
 
+export interface PerGearValue {
+  gear: number;
+  value: number | null;
+  flag: string | null;
+}
+
+export interface PerGearSummary {
+  name: string;
+  status: 'computed';
+  kind: 'per_gear';
+  unit: string;
+  range: RideSummaryRange;
+  gears: PerGearValue[];
+}
+
 export interface RideSummaryBinned {
   name: string;
   status: 'computed';
@@ -77,7 +92,7 @@ export interface RideSummaryUnavailable {
   message?: string;
 }
 
-export type RideSummarySignal = RideSummaryScalar | RideSummaryBinned | RideSummaryUnavailable;
+export type RideSummarySignal = RideSummaryScalar | RideSummaryBinned | PerGearSummary | RideSummaryUnavailable;
 
 export interface RideSummary {
   sessionId: string;
@@ -351,7 +366,23 @@ function parseSummarySignal(raw: unknown): RideSummarySignal {
     const flag = raw.flag === null ? null : typeof raw.flag === 'string' ? raw.flag : malformedSummary(`${name}.flag is not null or a string`);
     return { name, status: 'computed', kind: 'scalar', unit: raw.unit, range, value, flag };
   }
-  if (raw.kind !== 'binned') return malformedSummary(`${name}.kind is neither scalar nor binned`);
+  if (raw.kind === 'per_gear') {
+    const malformedPerGear = (why: string): RideSummaryUnavailable => ({ name, status: 'error', message: `malformed per_gear: ${why}` });
+    if (!Array.isArray(raw.gears)) return malformedPerGear('gears is not a list');
+    const gears: PerGearValue[] = [];
+    for (const [gearIndex, rawGear] of raw.gears.entries()) {
+      if (!isRecord(rawGear) || !Number.isInteger(rawGear.gear)) {
+        return malformedPerGear(`gears[${gearIndex}] has no valid gear`);
+      }
+      const value = rawGear.value === null ? null : finite(rawGear.value) ? rawGear.value : malformedPerGear(`gears[${gearIndex}].value is not null or a finite number`);
+      if (value !== null && typeof value === 'object') return value;
+      const flag = rawGear.flag === null ? null : typeof rawGear.flag === 'string' ? rawGear.flag : malformedPerGear(`gears[${gearIndex}].flag is not null or a string`);
+      if (flag !== null && typeof flag === 'object') return flag;
+      gears.push({ gear: rawGear.gear as number, value, flag });
+    }
+    return { name, status: 'computed', kind: 'per_gear', unit: raw.unit, range, gears };
+  }
+  if (raw.kind !== 'binned') return malformedSummary(`${name}.kind is neither scalar, binned nor per_gear`);
 
   if (!Array.isArray(raw.axes) || raw.axes.length === 0) return malformedSummary(`${name}.axes is not a non-empty list`);
   const axes: RideSummaryAxis[] = [];
