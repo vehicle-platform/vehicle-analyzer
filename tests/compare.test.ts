@@ -187,6 +187,30 @@ describe('compareRideSummaries', () => {
     { name: 'only.b', status: 'computed', kind: 'scalar', unit: 'x', range: [0, 1], value: 1, flag: null },
   ]);
 
+  it('lists every per-gear row present in A or B and only differences with both values', () => {
+    const signal = (gears: { gear: number; value: number | null; flag: string | null }[]): RideSummary['signals'][number] => ({
+      name: 'ride_final_drive_ratio',
+      status: 'computed',
+      kind: 'per_gear',
+      unit: 'ratio',
+      range: [2, 3.5],
+      gears,
+    });
+    const rows = compareRideSummaries(
+      summary('A', [signal([{ gear: 1, value: 2.64, flag: null }, { gear: 2, value: null, flag: 'no_steady_samples' }])]),
+      summary('B', [signal([{ gear: 1, value: 2.5, flag: null }, { gear: 3, value: 2.9, flag: null }])])
+    );
+    expect(rows.map((row) => row.name)).toEqual([
+      'ride_final_drive_ratio gear 1',
+      'ride_final_drive_ratio gear 2',
+      'ride_final_drive_ratio gear 3',
+    ]);
+    expect(rows[0]).toMatchObject({ aValue: 2.64, bValue: 2.5, unit: 'ratio' });
+    expect(rows[0].diff).toBeCloseTo(-0.14);
+    expect(rows[1]).toMatchObject({ aValue: null, bValue: null, diff: null });
+    expect(rows[2]).toMatchObject({ aValue: null, bValue: 2.9, diff: null });
+  });
+
   it('keeps scalar rows present in both sessions and uses status where not computed', () => {
     const rows = compareRideSummaries(a, b);
     expect(rows.map((row) => row.name)).toEqual(['derived.trip_distance', 'derived.idle_time']);

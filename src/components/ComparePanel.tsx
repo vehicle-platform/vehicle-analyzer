@@ -342,7 +342,7 @@ export const ComparePanel: React.FC<ComparePanelProps> = ({ token, onTokenChange
       {summaryError && <Note className="px-[14px] py-1 text-term-amber">Ride summary unavailable: {summaryError}</Note>}
       {summaryRows.length > 0 && (
         <div className="border-t border-term-rule">
-          <ListHead aside={`${summaryRows.length} scalar${summaryRows.length === 1 ? '' : 's'}`}>ride summaries</ListHead>
+          <ListHead aside={`${summaryRows.length} row${summaryRows.length === 1 ? '' : 's'}`}>ride summaries</ListHead>
           <table className="w-full border-collapse" aria-label="Ride summaries A vs B">
             <thead>
               <tr>
