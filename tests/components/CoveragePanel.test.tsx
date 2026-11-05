@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { CoveragePanel } from '../../src/components/CoveragePanel';
 import { DEFS } from '../../src/defs';
+import { buildCoverage } from '../../src/services/coverage';
 import { downloadFile } from '../../src/services/exportService';
 import { jsonResponse } from './helpers';
 
@@ -141,16 +142,20 @@ describe('CoveragePanel', () => {
 
   it('exports only the visible rows as CSV', () => {
     renderPanel();
-    fireEvent.change(screen.getByLabelText('Search signal coverage by name or description'), { target: { value: 'gear_estimate' } });
-    expect(rowCount()).toBe(1);
+    // the expected rows follow the bundled defs (names and descriptions change with them)
+    const term = 'gear_estimate';
+    const expected = buildCoverage(DEFS).filter((r) => `${r.name} ${r.description}`.toLowerCase().includes(term)).length;
+    expect(expected).toBeGreaterThan(0);
+    fireEvent.change(screen.getByLabelText('Search signal coverage by name or description'), { target: { value: term } });
+    expect(rowCount()).toBe(expected);
+    expect(rowCount()).toBeLessThan(buildCoverage(DEFS).length);
 
     fireEvent.click(screen.getByRole('button', { name: /Export CSV/ }));
 
     expect(downloadFile).toHaveBeenCalledTimes(1);
     const [content, filename, mime] = vi.mocked(downloadFile).mock.calls[0];
-    expect(content.split('\n')).toHaveLength(2);
+    expect(content.split('\n')).toHaveLength(expected + 1);
     expect(content).toContain('gear_estimate');
-    expect(content).not.toContain('ENGINE_SPEED');
     expect(filename).toMatch(/^coverage-v/);
     expect(mime).toBe('text/csv;charset=utf-8');
   });
