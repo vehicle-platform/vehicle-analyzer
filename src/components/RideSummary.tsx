@@ -3,6 +3,7 @@ import { Na, Note, TermButton, cn } from '../ui/primitives';
 import { Empty, TH, TD } from '../ui/panel-parts';
 import {
   NoRideSummaryError,
+  type PerGearSummary,
   type RideSummary as RideSummaryData,
   type RideSummaryBinned,
   type RideSummarySignal,
@@ -125,6 +126,7 @@ const BinnedChart: React.FC<{ signal: RideSummaryBinned }> = ({ signal }) => {
 const SignalList: React.FC<{ summary: RideSummaryData }> = ({ summary }) => {
   const scalars = summary.signals.filter((signal): signal is Extract<RideSummarySignal, { kind: 'scalar' }> => signal.status === 'computed' && signal.kind === 'scalar');
   const binned = summary.signals.filter((signal): signal is RideSummaryBinned => signal.status === 'computed' && signal.kind === 'binned');
+  const perGear = summary.signals.filter((signal): signal is PerGearSummary => signal.status === 'computed' && signal.kind === 'per_gear');
   const unavailable = summary.signals.filter((signal): signal is RideSummaryUnavailable => signal.status !== 'computed');
   const hasContent = summary.signals.length > 0;
 
@@ -156,6 +158,38 @@ const SignalList: React.FC<{ summary: RideSummaryData }> = ({ summary }) => {
           </tbody>
         </table>
       )}
+
+      {perGear.map((signal) => (
+        <section key={signal.name} className="border-t border-term-rule px-[14px] py-2" aria-label={`${signal.name} summary`}>
+          <div className="flex items-baseline gap-[2ch]">
+            <span className="text-term-fg">{signal.name}</span>
+            <span className="text-term-faint">{signal.unit}</span>
+            <span className="ml-auto text-term-dim">range {signal.range[0]}…{signal.range[1]}</span>
+          </div>
+          <table className="w-full border-collapse" aria-label={`${signal.name} per gear`}>
+            <thead>
+              <tr>
+                <th className={TH}>gear</th>
+                <th className={TH}>value</th>
+                <th className={TH}>unit</th>
+                <th className={TH}>flag</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[...signal.gears].sort((a, b) => a.gear - b.gear).map((gear) => (
+                <tr key={gear.gear}>
+                  <td className={cn(TD, 'text-term-fg')}>gear {gear.gear}</td>
+                  <td className={cn(TD, 'text-term-hi')} title={`range ${signal.range[0]}…${signal.range[1]}`}>
+                    {formatRideValue(gear.value, signal.range)}
+                  </td>
+                  <td className={cn(TD, 'text-term-dim')}>{signal.unit}</td>
+                  <td className={cn(TD, 'text-term-dim')}>{gear.flag ?? <Na />}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      ))}
 
       {binned.map((signal) => (
         <section key={signal.name} className="border-t border-term-rule px-[14px] py-2" aria-label={`${signal.name} summary`}>

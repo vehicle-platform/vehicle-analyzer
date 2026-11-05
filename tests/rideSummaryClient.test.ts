@@ -68,6 +68,50 @@ describe('parseRideSummary', () => {
   });
 });
 
+describe('parseRideSummary per-gear entries', () => {
+  const perGear = {
+    name: 'ride_final_drive_ratio',
+    status: 'computed',
+    unit: 'ratio',
+    range: [2, 3.5],
+    kind: 'per_gear',
+    gears: [
+      { gear: 1, value: 2.64, flag: null },
+      { gear: 4, value: null, flag: 'no_steady_samples' },
+    ],
+  };
+
+  it('keeps the server gear rows, null values and flags', () => {
+    const parsed = parseRideSummary({ ...summary, signals: [perGear] });
+    expect(parsed.signals[0]).toMatchObject({
+      name: 'ride_final_drive_ratio',
+      kind: 'per_gear',
+      unit: 'ratio',
+      range: [2, 3.5],
+      gears: [
+        { gear: 1, value: 2.64, flag: null },
+        { gear: 4, value: null, flag: 'no_steady_samples' },
+      ],
+    });
+  });
+
+  it('accepts an empty gears list', () => {
+    const parsed = parseRideSummary({ ...summary, signals: [{ ...perGear, gears: [] }] });
+    expect(parsed.signals[0]).toMatchObject({ kind: 'per_gear', gears: [] });
+  });
+
+  it.each([
+    ['gears is not a list', { ...perGear, gears: 'none' }, /gears is not a list/],
+    ['gear is not an integer', { ...perGear, gears: [{ gear: 1.5, value: 2.6, flag: null }] }, /has no valid gear/],
+    ['value is not a number', { ...perGear, gears: [{ gear: 1, value: '2.6', flag: null }] }, /value is not null or a finite number/],
+    ['flag is not a string', { ...perGear, gears: [{ gear: 1, value: 2.6, flag: 7 }] }, /flag is not null or a string/],
+  ])('keeps the summary and marks one entry unavailable when %s', (_why, signal, error) => {
+    const parsed = parseRideSummary({ ...summary, signals: [signal] });
+    expect(parsed.signals[0]).toMatchObject({ name: 'ride_final_drive_ratio', status: 'error' });
+    expect(parsed.signals[0]).toHaveProperty('message', expect.stringMatching(error));
+  });
+});
+
 describe('parseRidesResponse', () => {
   it('maps columns, rows and skipped sessions', () => {
     const parsed = parseRidesResponse(rides);

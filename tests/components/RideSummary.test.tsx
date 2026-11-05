@@ -119,6 +119,61 @@ describe('RideSummary loaded state', () => {
     expect(screen.getByText(/ride too short/)).toBeTruthy();
   });
 
+  it('draws per-gear values in gear order with the response unit, flag and range precision', async () => {
+    const perGearSummary = {
+      ...summary,
+      signals: [
+        {
+          name: 'ride_final_drive_ratio',
+          status: 'computed',
+          unit: 'ratio',
+          range: [2, 3.5],
+          kind: 'per_gear',
+          gears: [
+            { gear: 4, value: null, flag: 'no_steady_samples' },
+            { gear: 1, value: 2.64, flag: null },
+          ],
+        },
+      ],
+    };
+    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse(perGearSummary)));
+    render(<RideSummary {...props()} />);
+
+    expect(await screen.findByText('ride_final_drive_ratio')).toBeTruthy();
+    const table = screen.getByRole('table', { name: 'ride_final_drive_ratio per gear' });
+    expect(table.textContent).toContain('gear 1');
+    expect(table.textContent).toContain('2.6400');
+    expect(table.textContent).toContain('ratio');
+    expect(table.textContent).toContain('gear 4');
+    expect(table.textContent).toContain('no_steady_samples');
+    expect(table.textContent?.indexOf('gear 1')).toBeLessThan(table.textContent?.indexOf('gear 4') ?? -1);
+  });
+
+  it('keeps the card and shows a malformed per-gear entry as unavailable', async () => {
+    const malformed = {
+      ...summary,
+      signals: [
+        {
+          name: 'ride_final_drive_ratio',
+          status: 'computed',
+          unit: 'ratio',
+          range: [2, 3.5],
+          kind: 'per_gear',
+          gears: [{ gear: 1.5, value: 2.64, flag: null }],
+        },
+      ],
+    };
+    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse(malformed)));
+    render(<RideSummary {...props()} />);
+
+    expect(await screen.findByText('ride cl250_ride')).toBeTruthy();
+    expect(screen.getByText('not available (1)')).toBeTruthy();
+    fireEvent.click(screen.getByText('not available (1)'));
+    expect(screen.getByText('ride_final_drive_ratio')).toBeTruthy();
+    expect(screen.getByText(/malformed per_gear/)).toBeTruthy();
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
   it('fetches once per selected session, not per render or URL keystroke', async () => {
     const fetchMock = vi.fn(async () => jsonResponse(summary));
     vi.stubGlobal('fetch', fetchMock);
