@@ -1,8 +1,14 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { RideSummary } from '../../src/components/RideSummary';
+import { RideSummary as RideSummaryView, useRideSummary } from '../../src/components/RideSummary';
 import { jsonResponse } from './helpers';
+
+/** Test harness: the parent (SessionPanel) owns the fetch via `useRideSummary`. */
+const RideSummary: React.FC<{ token: string; serverUrl: string; sessionId: string | null }> = ({ token, serverUrl, sessionId }) => {
+  const { state, retry } = useRideSummary(token, serverUrl, sessionId);
+  return <RideSummaryView serverUrl={serverUrl} sessionId={sessionId} state={state} onRetry={retry} />;
+};
 
 const fail = (status: number, body: unknown) =>
   ({
