@@ -113,6 +113,14 @@ export const HealthWindows: React.FC<HealthWindowsProps> = ({ token, serverUrl, 
     };
   }, [sessionId, hasServer]);
 
+  if (report === null) {
+    return (
+      <div className="px-[14px] py-2">
+        <Note className="py-1">Loading report...</Note>
+      </div>
+    );
+  }
+
   if (parsed.ok === false) {
     return (
       <div className="px-[14px] py-2">
