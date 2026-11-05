@@ -39,7 +39,28 @@ describe('pinned vehicle-defs', () => {
   it('loads ISO 14229 names, identification DIDs (no VIN) and cornering limits', () => {
     expect(DEFS.iso.nrcs.get(0x31)).toBe('REQUEST_OUT_OF_RANGE');
     expect(DEFS.identification.map((i) => i.did)).not.toContain(0xf190);
+    expect(DEFS.identification.every((i) => i.description.length > 0)).toBe(true);
     expect(DEFS.limits.kYellow).toBeLessThan(DEFS.limits.kRed);
     expect(DEFS.ref).toMatch(/^v\d+\.\d+\.\d+$/);
+  });
+
+  it('loads non-DID sensors and the derived signal facts for coverage', () => {
+    expect(DEFS.sensors).toHaveLength(18);
+    const ax = DEFS.sensors.find((s) => s.name === 'imu_accel_x')!;
+    expect(ax.phase0).toBe('ble.imuBlock.ax');
+    expect(ax.rtCore).toBeNull();
+
+    expect(DEFS.derivedSignals).toHaveLength(155);
+    expect(DEFS.derivedSignals.filter((s) => s.class === 'A')).toHaveLength(66);
+    expect(DEFS.derivedSignals.filter((s) => s.class === 'B')).toHaveLength(75);
+    expect(DEFS.derivedSignals.filter((s) => s.class === 'C')).toHaveLength(12);
+    expect(DEFS.derivedSignals.filter((s) => s.class === 'D')).toHaveLength(2);
+    const gear = DEFS.derivedSignals.find((s) => s.name === 'gear_estimate')!;
+    expect(gear.class).toBe('A');
+    expect(gear.inputs).toContain('derived.gearbox_ratio_measured');
+    const recorded = DEFS.derivedSignals.find((s) => s.record !== undefined)!;
+    expect(recorded.record).toMatch(/^RIDE_/);
+    const pending = DEFS.derivedSignals.find((s) => s.pendingInputs.length > 0)!;
+    expect(pending.pendingInputs[0]).toMatch(/accelerometer|Q-/);
   });
 });

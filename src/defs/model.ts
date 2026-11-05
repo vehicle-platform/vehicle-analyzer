@@ -30,7 +30,33 @@ export interface IdentificationDid {
   did: number;
   name: string;
   label: string;
+  description: string;
   encoding: string;
+}
+
+/** A non-DID input of the derived signals (derived/cl250_derived.yaml `sensors`). */
+export interface SensorDef {
+  name: string;
+  unit: string;
+  description: string;
+  /** Phase 0 source (`ble.<block>.<field>`), or null when there is none. */
+  phase0: string | null;
+  /** rt-core source (`can.<Message>.<SIGNAL>` or `uds.<DID>.<FIELD>`), or null. */
+  rtCore: string | null;
+}
+
+export type DerivedClass = 'A' | 'B' | 'C' | 'D';
+
+/** One definition of derived/cl250_derived.yaml `signals` (no formula, D-070). */
+export interface DerivedSignalDef {
+  name: string;
+  class: DerivedClass;
+  unit: string;
+  description: string;
+  inputs: string[];
+  pendingInputs: string[];
+  window?: string;
+  record?: string;
 }
 
 /** One value inside a multi-value catalog DID (D-068). */
@@ -164,6 +190,8 @@ export interface Defs {
   catalogByDid: Map<number, CatalogDidDef>;
   iso: Iso14229Names;
   windows: HealthWindowDef[];
+  sensors: SensorDef[];
+  derivedSignals: DerivedSignalDef[];
   limits: CorneringLimits;
 }
 
@@ -186,6 +214,21 @@ const num = (v: unknown, what: string): number => {
 const byteArray = (v: unknown, what: string): number[] => {
   if (!Array.isArray(v)) throw new Error(`defs: ${what} is not a list`);
   return v.map((x, i) => num(x, `${what}[${i}]`));
+};
+
+const text = (v: unknown, what: string): string => {
+  if (typeof v !== 'string') throw new Error(`defs: ${what} is not a string`);
+  return v;
+};
+
+const textList = (v: unknown, what: string): string[] => {
+  if (!Array.isArray(v)) throw new Error(`defs: ${what} is not a list`);
+  return v.map((x, i) => text(x, `${what}[${i}]`));
+};
+
+const nullableSource = (v: unknown, what: string): string | null => {
+  if (v === null) return null;
+  return text(v, what);
 };
 
 function buildVehicle(doc: any): VehicleDefs {
@@ -399,6 +442,34 @@ function buildWindows(doc: any): HealthWindowDef[] {
   }));
 }
 
+function buildSensors(doc: any): SensorDef[] {
+  return Object.entries(doc.sensors ?? {}).map(([name, s]: [string, any]) => ({
+    name,
+    unit: text(s.unit, `${name}.unit`),
+    description: text(s.description, `${name}.description`),
+    phase0: nullableSource(s.phase0, `${name}.phase0`),
+    rtCore: nullableSource(s.rt_core, `${name}.rt_core`),
+  }));
+}
+
+function buildDerivedSignals(doc: any): DerivedSignalDef[] {
+  const classes: DerivedClass[] = ['A', 'B', 'C', 'D'];
+  return Object.entries(doc.signals ?? {}).map(([name, s]: [string, any]) => {
+    const signalClass = text(s.class, `${name}.class`) as DerivedClass;
+    if (!classes.includes(signalClass)) throw new Error(`defs: ${name}.class is not A, B, C or D`);
+    return {
+      name,
+      class: signalClass,
+      unit: text(s.unit, `${name}.unit`),
+      description: text(s.description, `${name}.description`),
+      inputs: textList(s.inputs, `${name}.inputs`),
+      pendingInputs: s.pending_inputs === undefined ? [] : textList(s.pending_inputs, `${name}.pending_inputs`),
+      window: s.window === undefined || s.window === null ? undefined : text(s.window, `${name}.window`),
+      record: s.record === undefined || s.record === null ? undefined : text(s.record, `${name}.record`),
+    };
+  });
+}
+
 function buildLimits(doc: any): CorneringLimits {
   const find = (name: string): number => {
     // The limits file groups values in sections; search them for the key.
@@ -419,6 +490,7 @@ export function buildDefs(src: DefsSources): Defs {
   const obd = parseYaml(src.obdCatalogYaml);
   const vehicle = buildVehicle(parseYaml(src.vehicleYaml));
   const catalog = buildCatalog(vehicle, obd);
+  const derived = parseYaml(src.derivedYaml);
   return {
     ref: src.ref,
     platform: parseDbc(src.platformDbc),
@@ -428,12 +500,15 @@ export function buildDefs(src: DefsSources): Defs {
       did: num(x.did, 'identification.did'),
       name: String(x.name),
       label: String(x.label ?? x.name),
+      description: String(x.description ?? ''),
       encoding: String(x.encoding ?? 'ascii'),
     })),
     catalog,
     catalogByDid: new Map(catalog.map((d) => [d.did, d])),
     iso: buildIso(parseYaml(src.iso14229Yaml)),
-    windows: buildWindows(parseYaml(src.derivedYaml)),
+    windows: buildWindows(derived),
+    sensors: buildSensors(derived),
+    derivedSignals: buildDerivedSignals(derived),
     limits: buildLimits(parseYaml(src.limitsYaml)),
   };
 }
