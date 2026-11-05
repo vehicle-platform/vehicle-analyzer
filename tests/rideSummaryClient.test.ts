@@ -102,7 +102,10 @@ describe('parseRideSummary per-gear entries', () => {
 
   it.each([
     ['gears is not a list', { ...perGear, gears: 'none' }, /gears is not a list/],
-    ['gear is not an integer', { ...perGear, gears: [{ gear: 1.5, value: 2.6, flag: null }] }, /has no valid gear/],
+    ['gear is not an integer', { ...perGear, gears: [{ gear: 1.5, value: 2.6, flag: null }] }, /gear is not a positive integer/],
+    ['gear is below 1', { ...perGear, gears: [{ gear: 0, value: 2.6, flag: null }] }, /gear is not a positive integer/],
+    ['a gear is repeated', { ...perGear, gears: [{ gear: 2, value: 2.6, flag: null }, { gear: 2, value: 2.7, flag: null }] }, /gears\[1\]\.gear 2 is repeated/],
+    ['an entry is not an object', { ...perGear, gears: [3] }, /gears\[0\] is not an object/],
     ['value is not a number', { ...perGear, gears: [{ gear: 1, value: '2.6', flag: null }] }, /value is not null or a finite number/],
     ['flag is not a string', { ...perGear, gears: [{ gear: 1, value: 2.6, flag: 7 }] }, /flag is not null or a string/],
   ])('keeps the summary and marks one entry unavailable when %s', (_why, signal, error) => {

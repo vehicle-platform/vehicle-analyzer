@@ -1,4 +1,4 @@
-import type { PerGearSummary, RecordedSeries, RideSummary, RideSummaryRange, SeriesResponse } from './sessionClient';
+import type { PerGearSummary, RecordedSeries, RideSummary, RideSummaryRange, RideSummarySignal, SeriesResponse } from './sessionClient';
 
 /**
  * Session comparison (roadmap A4): two recorded vehicle-server sessions on a common time or
@@ -239,14 +239,44 @@ const scalarRange = (signal: RideSummary['signals'][number]): RideSummaryRange |
 const scalarUnit = (signal: RideSummary['signals'][number]): string =>
   signal.status === 'computed' && signal.kind === 'scalar' ? signal.unit : '';
 
-const perGear = (signal: RideSummary['signals'][number]): signal is PerGearSummary =>
+const perGear = (signal: RideSummarySignal): signal is PerGearSummary =>
   signal.status === 'computed' && signal.kind === 'per_gear';
 
-const perGearRange = (signal: RideSummary['signals'][number]): RideSummaryRange | null =>
-  perGear(signal) ? signal.range : null;
+const mergedRange = (rangeA: RideSummaryRange | null, rangeB: RideSummaryRange | null): RideSummaryRange => {
+  const ranges = [rangeA, rangeB].filter((range): range is RideSummaryRange => range !== null);
+  return ranges.length ? [Math.min(...ranges.map((r) => r[0])), Math.max(...ranges.map((r) => r[1]))] : [0, 1];
+};
 
-const perGearUnit = (signal: RideSummary['signals'][number]): string =>
-  perGear(signal) ? signal.unit : '';
+const mergedUnit = (unitA: string, unitB: string): string =>
+  unitA && unitB && unitA !== unitB ? `${unitA} / ${unitB}` : unitA || unitB;
+
+/**
+ * One row per gear stored in A or B (`<signal> gear n`, gear order). A gear stored on one side
+ * only reads as a missing value there; the server lists stored gears only and infers none.
+ */
+function perGearRows(signalA: RideSummarySignal, signalB: RideSummarySignal): RideSummaryCompareRow[] {
+  const sideA = perGear(signalA) ? signalA : null;
+  const sideB = perGear(signalB) ? signalB : null;
+  const valuesA = new Map(sideA?.gears.map((entry) => [entry.gear, entry.value] as const) ?? []);
+  const valuesB = new Map(sideB?.gears.map((entry) => [entry.gear, entry.value] as const) ?? []);
+  const range = mergedRange(sideA?.range ?? null, sideB?.range ?? null);
+  const unit = mergedUnit(sideA?.unit ?? '', sideB?.unit ?? '');
+  const gears = [...new Set([...valuesA.keys(), ...valuesB.keys()])].sort((x, y) => x - y);
+  return gears.map((gear) => {
+    const aValue = valuesA.get(gear) ?? null;
+    const bValue = valuesB.get(gear) ?? null;
+    return {
+      name: `${signalA.name} gear ${gear}`,
+      unit,
+      range,
+      aStatus: sideA ? 'computed' : signalA.status,
+      bStatus: sideB ? 'computed' : signalB.status,
+      aValue,
+      bValue,
+      diff: aValue !== null && bValue !== null ? bValue - aValue : null,
+    };
+  });
+}
 
 /** Summary rows present in both sessions; statuses replace values where not computed. */
 export function compareRideSummaries(a: RideSummary | null, b: RideSummary | null): RideSummaryCompareRow[] {
@@ -258,38 +288,14 @@ export function compareRideSummaries(a: RideSummary | null, b: RideSummary | nul
     if (!signalB) continue;
     if (signalA.status === 'computed' && signalA.kind === 'binned') continue;
     if (signalB.status === 'computed' && signalB.kind === 'binned') continue;
-    const rangeA = perGear(signalA) || perGear(signalB) ? perGearRange(signalA) : scalarRange(signalA);
-    const rangeB = perGear(signalA) || perGear(signalB) ? perGearRange(signalB) : scalarRange(signalB);
-    const ranges = [rangeA, rangeB].filter((range): range is RideSummaryRange => range !== null);
-    const range: RideSummaryRange = ranges.length
-      ? [Math.min(...ranges.map((r) => r[0])), Math.max(...ranges.map((r) => r[1]))]
-      : [0, 1];
-    const unitA = perGear(signalA) || perGear(signalB) ? perGearUnit(signalA) : scalarUnit(signalA);
-    const unitB = perGear(signalA) || perGear(signalB) ? perGearUnit(signalB) : scalarUnit(signalB);
-    const unit = unitA && unitB && unitA !== unitB ? `${unitA} / ${unitB}` : unitA || unitB;
     if (perGear(signalA) || perGear(signalB)) {
-      const gearsA = new Map(perGear(signalA) ? signalA.gears.map((gear) => [gear.gear, gear] as const) : []);
-      const gearsB = new Map(perGear(signalB) ? signalB.gears.map((gear) => [gear.gear, gear] as const) : []);
-      for (const gear of [...new Set([...gearsA.keys(), ...gearsB.keys()])].sort((a, b) => a - b)) {
-        const a = gearsA.get(gear);
-        const b = gearsB.get(gear);
-        const aValue = a?.value ?? null;
-        const bValue = b?.value ?? null;
-        rows.push({
-          name: `${signalA.name} gear ${gear}`,
-          unit,
-          range,
-          aStatus: perGear(signalA) ? 'computed' : signalA.status,
-          bStatus: perGear(signalB) ? 'computed' : signalB.status,
-          aValue,
-          bValue,
-          diff: aValue !== null && bValue !== null ? bValue - aValue : null,
-        });
-      }
+      rows.push(...perGearRows(signalA, signalB));
       continue;
     }
     const aValue = scalarValue(signalA);
     const bValue = scalarValue(signalB);
+    const range = mergedRange(scalarRange(signalA), scalarRange(signalB));
+    const unit = mergedUnit(scalarUnit(signalA), scalarUnit(signalB));
     rows.push({
       name: signalA.name,
       unit,

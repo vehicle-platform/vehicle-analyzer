@@ -333,6 +333,25 @@ const finiteRange = (x: unknown): x is RideSummaryRange =>
   Array.isArray(x) && x.length === 2 && finite(x[0]) && finite(x[1]) && x[0] <= x[1];
 const stringList = (x: unknown): x is string[] => Array.isArray(x) && x.every((v) => typeof v === 'string');
 
+/** The server's `gears` list (gear = stored cell + 1, so >= 1, each once), or why it is malformed. */
+function parsePerGearList(raw: unknown): PerGearValue[] | string {
+  if (!Array.isArray(raw)) return 'gears is not a list';
+  const gears: PerGearValue[] = [];
+  const seen = new Set<number>();
+  for (const [index, entry] of raw.entries()) {
+    const at = `gears[${index}]`;
+    if (!isRecord(entry)) return `${at} is not an object`;
+    const { gear, value, flag } = entry;
+    if (typeof gear !== 'number' || !Number.isInteger(gear) || gear < 1) return `${at}.gear is not a positive integer`;
+    if (seen.has(gear)) return `${at}.gear ${gear} is repeated`;
+    if (value !== null && !finite(value)) return `${at}.value is not null or a finite number`;
+    if (flag !== null && typeof flag !== 'string') return `${at}.flag is not null or a string`;
+    seen.add(gear);
+    gears.push({ gear, value, flag });
+  }
+  return gears;
+}
+
 function parseSummarySignal(raw: unknown): RideSummarySignal {
   if (!isRecord(raw)) return malformedSummary('signal is not an object');
   const { name, status } = raw;
@@ -367,19 +386,9 @@ function parseSummarySignal(raw: unknown): RideSummarySignal {
     return { name, status: 'computed', kind: 'scalar', unit: raw.unit, range, value, flag };
   }
   if (raw.kind === 'per_gear') {
-    const malformedPerGear = (why: string): RideSummaryUnavailable => ({ name, status: 'error', message: `malformed per_gear: ${why}` });
-    if (!Array.isArray(raw.gears)) return malformedPerGear('gears is not a list');
-    const gears: PerGearValue[] = [];
-    for (const [gearIndex, rawGear] of raw.gears.entries()) {
-      if (!isRecord(rawGear) || !Number.isInteger(rawGear.gear)) {
-        return malformedPerGear(`gears[${gearIndex}] has no valid gear`);
-      }
-      const value = rawGear.value === null ? null : finite(rawGear.value) ? rawGear.value : malformedPerGear(`gears[${gearIndex}].value is not null or a finite number`);
-      if (value !== null && typeof value === 'object') return value;
-      const flag = rawGear.flag === null ? null : typeof rawGear.flag === 'string' ? rawGear.flag : malformedPerGear(`gears[${gearIndex}].flag is not null or a string`);
-      if (flag !== null && typeof flag === 'object') return flag;
-      gears.push({ gear: rawGear.gear as number, value, flag });
-    }
+    // A malformed gear list costs only this signal: one error row, not a failed card.
+    const gears = parsePerGearList(raw.gears);
+    if (typeof gears === 'string') return { name, status: 'error', message: `malformed per_gear: ${gears}` };
     return { name, status: 'computed', kind: 'per_gear', unit: raw.unit, range, gears };
   }
   if (raw.kind !== 'binned') return malformedSummary(`${name}.kind is neither scalar, binned nor per_gear`);
