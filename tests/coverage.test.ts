@@ -5,6 +5,7 @@ import {
   buildCoverage,
   coverageToCsv,
   defsStatusText,
+  enumValuesText,
   sessionText,
   summarize,
   waitingFor,
@@ -161,5 +162,17 @@ describe('summarize and CSV', () => {
     expect(defsStatusText(polled)).toContain('verified');
     const next = applySession([polled], { valid_ratios: { engine_speed: { total_count: 1, valid_count: 1, valid_percent: 100 } } })[0];
     expect(sessionText(next)).toBe('valid (100%)');
+  });
+});
+
+describe('enum values (defs v0.25.0)', () => {
+  it('parses the named codes of the enum signals and shows them in the defs facts', () => {
+    const clutch = DEFS.derivedSignals.find((s) => s.name === 'clutch_state')!;
+    expect(clutch.values).toEqual({ 0: 'engaged', 1: 'disengaged', 2: 'slipping' });
+    expect(DEFS.derivedSignals.find((s) => s.name === 'gear_estimate')!.values).toEqual({ 0: 'no_gear' });
+    expect(DEFS.derivedSignals.find((s) => s.name === 'vehicle_accel')!.values).toBeUndefined();
+    const row = buildCoverage(DEFS).find((r) => r.name === 'neutral_coasting_state')!;
+    expect(defsStatusText(row)).toContain('values: 0 driven, 1 neutral, 2 coasting');
+    expect(enumValuesText({ 2: 'b', 0: 'a' })).toBe('0 a, 2 b');
   });
 });
