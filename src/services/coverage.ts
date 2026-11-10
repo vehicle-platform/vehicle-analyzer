@@ -31,6 +31,8 @@ export interface DerivedDefsStatus {
   inputs: string[];
   window?: string;
   record?: string;
+  /** Named codes of an enum signal (defs `values`). */
+  values?: Record<number, string>;
 }
 
 export type CoverageDefsStatus = PolledDidDefsStatus | CatalogDefsStatus | SensorDefsStatus | DerivedDefsStatus;
@@ -140,6 +142,7 @@ export function buildCoverage(defs: Defs): CoverageRow[] {
         inputs: signal.inputs,
         window: signal.window,
         record: signal.record,
+        values: signal.values,
       },
       session: null,
     });
@@ -180,6 +183,15 @@ export function waitingCategory(row: CoverageRow): string {
   }
 }
 
+/** "0 engaged, 1 disengaged, 2 slipping": the defs `values` of an enum signal, by code. */
+export function enumValuesText(values: Record<number, string>): string {
+  return Object.keys(values)
+    .map(Number)
+    .sort((a, b) => a - b)
+    .map((code) => `${code} ${values[code]}`)
+    .join(', ');
+}
+
 /** Short defs-status text, built only from the raw YAML fields. */
 export function defsStatusText(row: CoverageRow): string {
   const status = row.defsStatus;
@@ -194,6 +206,7 @@ export function defsStatusText(row: CoverageRow): string {
       const parts = [`class ${row.class ?? ''}`, `inputs: ${status.inputs.join(', ') || 'none'}`];
       if (status.window !== undefined) parts.push(`window: ${status.window}`);
       if (status.record !== undefined) parts.push(`record: ${status.record}`);
+      if (status.values !== undefined) parts.push(`values: ${enumValuesText(status.values)}`);
       return parts.join(' · ');
     }
   }

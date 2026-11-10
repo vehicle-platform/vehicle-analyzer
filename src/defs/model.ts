@@ -57,6 +57,8 @@ export interface DerivedSignalDef {
   pendingInputs: string[];
   window?: string;
   record?: string;
+  /** Named codes of an enum signal (defs v0.25.0 `values`), e.g. 0 -> "engaged". */
+  values?: Record<number, string>;
 }
 
 /** One value inside a multi-value catalog DID (D-068). */
@@ -452,6 +454,18 @@ function buildSensors(doc: any): SensorDef[] {
   }));
 }
 
+/** `{code: name}` of a derived enum signal; the codes are integers (codegen checks the range). */
+function enumValues(raw: any, where: string): Record<number, string> {
+  if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) throw new Error(`defs: ${where} is not a mapping`);
+  const out: Record<number, string> = {};
+  for (const [code, label] of Object.entries(raw)) {
+    const n = Number(code);
+    if (!Number.isInteger(n)) throw new Error(`defs: ${where} code ${code} is not an integer`);
+    out[n] = text(label, `${where}.${code}`);
+  }
+  return out;
+}
+
 function buildDerivedSignals(doc: any): DerivedSignalDef[] {
   const classes: DerivedClass[] = ['A', 'B', 'C', 'D'];
   return Object.entries(doc.signals ?? {}).map(([name, s]: [string, any]) => {
@@ -466,6 +480,7 @@ function buildDerivedSignals(doc: any): DerivedSignalDef[] {
       pendingInputs: s.pending_inputs === undefined ? [] : textList(s.pending_inputs, `${name}.pending_inputs`),
       window: s.window === undefined || s.window === null ? undefined : text(s.window, `${name}.window`),
       record: s.record === undefined || s.record === null ? undefined : text(s.record, `${name}.record`),
+      values: s.values === undefined || s.values === null ? undefined : enumValues(s.values, `${name}.values`),
     };
   });
 }
