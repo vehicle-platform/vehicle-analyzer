@@ -1,5 +1,5 @@
 import React from 'react';
-import { BusRole, CockpitTab, TelemetrySource } from '../types/can';
+import { BusRole, CockpitTab, DesktopAdapterKind, TelemetrySource } from '../types/can';
 import type { BusLoad } from '../state/captureStore';
 import type { WsStatus } from '../App';
 import { RadioList, TermButton, TextMeter, cn } from '../ui/primitives';
@@ -18,6 +18,8 @@ interface HeaderProps {
   onSourceChange: (source: TelemetrySource) => void;
   usbRole: BusRole;
   onUsbRoleChange: (role: BusRole) => void;
+  /** Desktop (Tauri) native source; undefined in the browser host. */
+  desktop?: { kind: DesktopAdapterKind; name: string; onKindChange: (k: DesktopAdapterKind) => void; onNameChange: (n: string) => void };
   wsUrl: string;
   onWsUrlChange: (url: string) => void;
   wsToken: string;
@@ -56,6 +58,7 @@ const SOURCES: { value: TelemetrySource; label: string; title: string }[] = [
   { value: 'websocket', label: 'WS live', title: 'vehicle-server live stream' },
   { value: 'webserial', label: 'USB CAN', title: 'SLCAN adapter, opened listen-only' },
 ];
+const DESKTOP_SOURCE = { value: 'desktop' as TelemetrySource, label: 'Native CAN', title: 'Desktop HAL: SLCAN or SocketCAN, opened listen-only or refused' };
 
 /** Cells per bus-load bar; the header must fit 1366 px with two buses. */
 const METER_CELLS = 14;
@@ -93,7 +96,21 @@ export const Header: React.FC<HeaderProps> = (p) => {
         </Group>
 
         <Group className="gap-2 px-[6px]">
-          <RadioList label="Source" options={SOURCES} value={p.source} onChange={p.onSourceChange} />
+          <RadioList label="Source" options={p.desktop ? [...SOURCES.filter((s) => s.value !== 'webserial'), DESKTOP_SOURCE] : SOURCES} value={p.source} onChange={p.onSourceChange} />
+          {p.source === 'desktop' && p.desktop && (
+            <label className="flex items-center gap-[6px] text-term-dim" title="Native adapter: serial port (SLCAN) or SocketCAN interface; opened listen-only or refused">
+              <select value={p.desktop.kind} onChange={(e) => p.desktop?.onKindChange(e.target.value as DesktopAdapterKind)} className="term-select" aria-label="Adapter kind">
+                <option value="slcan">SLCAN serial</option>
+                <option value="socketcan">SocketCAN</option>
+              </select>
+              <input value={p.desktop.name} onChange={(e) => p.desktop?.onNameChange(e.target.value)} placeholder={p.desktop.kind === 'slcan' ? '/dev/ttyACM0' : 'can1'} aria-label="Adapter port or interface" spellCheck={false} className="term-input w-36" />
+              adapter on
+              <select value={p.usbRole} onChange={(e) => p.onUsbRoleChange(e.target.value as BusRole)} className="term-select">
+                <option value="vehicle">vehicle bus (DLC)</option>
+                <option value="platform">platform bus</option>
+              </select>
+            </label>
+          )}
           {p.source === 'webserial' && (
             <label className="flex items-center gap-[6px] text-term-dim" title="Bus the adapter is plugged into; it picks the DBC used for decoding">
               adapter on

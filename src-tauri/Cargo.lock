@@ -3982,6 +3982,7 @@ dependencies = [
 name = "vehicle-analyzer-desktop"
 version = "0.3.0"
 dependencies = [
+ "serde",
  "tauri",
  "tauri-build",
  "vehicle-analyzer-hal",

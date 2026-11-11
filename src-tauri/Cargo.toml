@@ -16,10 +16,17 @@ members = ["hal"]
 [dependencies]
 tauri = { version = "2", features = [] }
 vehicle-analyzer-hal = { path = "hal" }
+serde = { version = "1", features = ["derive"] }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+vehicle-analyzer-hal = { path = "hal", features = ["socketcan"] }
 
 [features]
-default = ["custom-protocol"]
+default = ["custom-protocol", "slcan"]
 custom-protocol = ["tauri/custom-protocol"]
+# Serial SLCAN backend (serialport, MPL-2.0); off = the desktop has no USB source.
+slcan = ["vehicle-analyzer-hal/slcan"]
+socketcan = ["vehicle-analyzer-hal/socketcan"]
 
 [profile.release]
 lto = true

@@ -16,12 +16,13 @@ import { RideHistoryPanel } from './components/RideHistoryPanel';
 import { CoveragePanel } from './components/CoveragePanel';
 import { ReplayItem, framesToItems, mergeSamples, replayMatchesSession } from './services/replay';
 import { DEFAULT_SERVER_URL, RecordedSeries, mapSeriesKey } from './services/sessionClient';
-import { BusRole, CanFrame, CockpitTab, TelemetrySource } from './types/can';
+import { BusRole, CanFrame, CockpitTab, DesktopAdapterKind, TelemetrySource } from './types/can';
 import { DEFS } from './defs';
 import { CaptureStore } from './state/captureStore';
 import { useCapture } from './state/useCapture';
 import { VirtualCanBus } from './services/virtualBus';
 import { WebSerialCanAdapter } from './services/webSerialCan';
+import { DesktopCanAdapter, isDesktop } from './services/desktopCan';
 import { didKey } from './services/pipeline';
 import { StreamStatus, WebSocketStreamClient } from './services/streamClient';
 import { ThemeContext, useTheme } from './ui/theme';
@@ -50,6 +51,9 @@ export function App() {
   const [isRunning, setIsRunning] = useState<boolean>(true);
   const [source, setSource] = useState<TelemetrySource>('virtual');
   const [usbRole, setUsbRole] = useState<BusRole>('vehicle');
+  const desktopHost = isDesktop();
+  const [desktopKind, setDesktopKind] = useState<DesktopAdapterKind>('slcan');
+  const [desktopName, setDesktopName] = useState<string>('');
   const [wsUrl, setWsUrl] = useState<string>(DEFAULT_WS_URL);
   const [wsStatus, setWsStatus] = useState<WsStatus>('disconnected');
   // Per-tab convenience only: the token stays in sessionStorage, never in the URL or the repo.
@@ -90,6 +94,7 @@ export function App() {
 
   const [virtualBus] = useState(() => new VirtualCanBus(DEFS));
   const webSerialRef = useRef<WebSerialCanAdapter | null>(null);
+  const desktopRef = useRef<DesktopCanAdapter | null>(null);
   const webSocketRef = useRef<WebSocketStreamClient | null>(null);
   const rxCounterRef = useRef<number>(0);
 
@@ -123,6 +128,8 @@ export function App() {
     virtualBus.stop();
     webSerialRef.current?.disconnect();
     webSerialRef.current = null;
+    void desktopRef.current?.disconnect();
+    desktopRef.current = null;
     webSocketRef.current?.disconnect();
     webSocketRef.current = null;
   }, [virtualBus]);
@@ -139,6 +146,17 @@ export function App() {
           setSourceError(`USB CAN: ${err.message}`);
           setIsRunning(false);
         });
+      } else if (s === 'desktop') {
+        const adapter = new DesktopCanAdapter();
+        desktopRef.current = adapter;
+        // Bit rate: both buses are classic CAN 500 kbit/s in the defs (D-009, D-019); the
+        // DBC bundle carries no machine-readable bit rate yet, SLCAN needs one.
+        adapter
+          .connect({ kind: desktopKind, name: desktopName.trim(), bitrate: 500000, bus: usbRole }, ingest)
+          .catch((err: Error) => {
+            setSourceError(`Native CAN: ${err.message}`);
+            setIsRunning(false);
+          });
       } else if (s === 'websocket') {
         setWsSource(null);
         const client = new WebSocketStreamClient({
@@ -152,7 +170,7 @@ export function App() {
         client.connect();
       }
     },
-    [virtualBus, ingest, usbRole, wsUrl, wsToken]
+    [virtualBus, ingest, usbRole, desktopKind, desktopName, wsUrl, wsToken]
   );
 
   // Start the default virtual source once; stop everything on unmount.
@@ -404,6 +422,8 @@ export function App() {
         ? `ws ${wsStatus}${wsSource ? ` (${wsSource})` : ''}${isRunning ? '' : ', paused'}`
         : source === 'webserial'
           ? `usb can ${usbRole} bus${isRunning ? '' : ', paused'}`
+          : source === 'desktop'
+            ? `native ${desktopKind} ${usbRole} bus${isRunning ? '' : ', paused'}`
           : source === 'server_session'
             ? `session replay ${isReplaying ? 'playing' : 'stopped'}`
             : `log replay ${isReplaying ? 'playing' : 'stopped'}`;
@@ -424,6 +444,7 @@ export function App() {
           onSourceChange={handleSourceChange}
           usbRole={usbRole}
           onUsbRoleChange={setUsbRole}
+          desktop={desktopHost ? { kind: desktopKind, name: desktopName, onKindChange: setDesktopKind, onNameChange: setDesktopName } : undefined}
           wsUrl={wsUrl}
           onWsUrlChange={setWsUrl}
           wsToken={wsToken}

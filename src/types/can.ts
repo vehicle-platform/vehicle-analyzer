@@ -109,7 +109,9 @@ export interface DbcCatalog {
 export const COCKPIT_TABS = ['trace', 'sniffer', 'oscilloscope', 'uds', 'health', 'cluster', 'sync', 'session', 'compare', 'track', 'rides', 'coverage'] as const;
 export type CockpitTab = (typeof COCKPIT_TABS)[number];
 export type TraceMode = 'overwrite' | 'scroll';
-export type TelemetrySource = 'virtual' | 'local_file' | 'websocket' | 'webserial' | 'server_session';
+export type TelemetrySource = 'virtual' | 'local_file' | 'websocket' | 'webserial' | 'desktop' | 'server_session';
+/** Native adapter kinds of the desktop HAL (src-tauri/hal). */
+export type DesktopAdapterKind = 'slcan' | 'socketcan';
 
 /** Bus a source's frames belong to: decides which defs catalog decodes them. */
 export type BusRole = 'vehicle' | 'platform';
