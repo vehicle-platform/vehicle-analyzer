@@ -1,0 +1,85 @@
+name: Desktop bundles
+
+# A6: build the Tauri desktop app for the three platforms. Runs on a published
+# release (assets attached to it) and on manual dispatch (artifacts only). It is
+# not part of PR CI: the ubuntu webkit apt step is slow and a bundle is a release
+# concern. Unsigned builds (no Apple/Windows signing keys in this public repo).
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: desktop-bundles-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  bundle:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            bundles: dmg
+            glob: src-tauri/target/release/bundle/dmg/*.dmg
+          - os: ubuntu-latest
+            bundles: appimage,deb
+            glob: |
+              src-tauri/target/release/bundle/appimage/*.AppImage
+              src-tauri/target/release/bundle/deb/*.deb
+          - os: windows-latest
+            bundles: msi
+            glob: src-tauri/target/release/bundle/msi/*.msi
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Defs pin must be a tag
+        shell: bash
+        run: |
+          git -C external/vehicle-defs fetch --quiet --depth=1 origin '+refs/tags/*:refs/tags/*'
+          git -C external/vehicle-defs describe --tags --exact-match
+
+      - name: System libraries for Tauri 2 (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build bundles
+        run: npm run tauri build -- --bundles ${{ matrix.bundles }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vehicle-analyzer-${{ matrix.os }}
+          path: ${{ matrix.glob }}
+          if-no-files-found: error
+
+      - name: Attach to the release
+        if: github.event_name == 'release'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          files=$(ls src-tauri/target/release/bundle/*/*.dmg src-tauri/target/release/bundle/*/*.AppImage src-tauri/target/release/bundle/*/*.deb src-tauri/target/release/bundle/*/*.msi 2>/dev/null || true)
+          test -n "$files" && gh release upload "${{ github.event.release.tag_name }}" $files --clobber
