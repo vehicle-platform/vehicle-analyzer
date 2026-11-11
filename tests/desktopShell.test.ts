@@ -44,7 +44,11 @@ describe('desktop shell', () => {
     expect(cap.permissions).toEqual(['core:default']);
   });
 
-  it('registers no native commands before the listen-only HAL (D-081 item 2)', () => {
-    expect(read('src-tauri/src/main.rs')).not.toMatch(/invoke_handler|plugin\(/);
+  it('registers exactly the two HAL commands and no plugin (D-081 item 2)', () => {
+    const main = read('src-tauri/src/main.rs');
+    expect(main).not.toMatch(/plugin\(/);
+    const handler = /generate_handler!\[([^\]]*)\]/.exec(main)?.[1] ?? '';
+    const commands = handler.split(',').map((c) => c.trim().replace(/^hal_bridge::/, '')).filter(Boolean).sort();
+    expect(commands).toEqual(['hal_close', 'hal_open']);
   });
 });
