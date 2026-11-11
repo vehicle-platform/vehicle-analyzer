@@ -42,7 +42,7 @@ jobs:
         run: npm run build
 
       # A8: every view opens with the virtual source, no console errors, no third-party request.
-      - name: Install Playwright Chromium (retried: the download is a long fetch)
+      - name: Install Playwright Chromium (retried, long download)
         run: |
           for i in 1 2 3; do npx playwright install --with-deps chromium && exit 0; echo "attempt $i failed"; done
           exit 1
