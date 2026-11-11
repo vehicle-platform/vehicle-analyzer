@@ -8,6 +8,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -38,8 +42,10 @@ jobs:
         run: npm run build
 
       # A8: every view opens with the virtual source, no console errors, no third-party request.
-      - name: Install Playwright Chromium
-        run: npx playwright install --with-deps chromium
+      - name: Install Playwright Chromium (retried: the download is a long fetch)
+        run: |
+          for i in 1 2 3; do npx playwright install --with-deps chromium && exit 0; echo "attempt $i failed"; done
+          exit 1
 
       - name: UI smoke tests
         run: npm run test:ui
@@ -48,16 +54,14 @@ jobs:
   # embeds the same frontend build. Bundles (.dmg, AppImage/.deb, .msi) come with
   # the listen-only HAL.
   desktop:
-    runs-on: ubuntu-latest
+    # macOS: Tauri 2 needs no extra system libraries there (ubuntu's webkit2gtk
+    # apt set is several hundred MB and has stalled the runner), and it is the
+    # developer machine's platform.
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: true
-
-      - name: System libraries for Tauri 2
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
 
       - uses: dtolnay/rust-toolchain@stable
         with:
