@@ -28,7 +28,10 @@ npm run dev      # Web Host dev server on http://localhost:5173
 npm test         # vitest (tests/), runs against the pinned defs
 npm run build    # Production bundle
 npm run preview  # Preview production build
+npm run tauri dev      # Desktop shell (A6, needs rustup + Tauri 2 system libs); `npm run tauri build` bundles
 ```
+
+Desktop shell (`src-tauri/`, red zone): runs the same `dist/` build, strict CSP, `core:default` capability only, **no native commands yet**. The listen-only CAN HAL (SocketCAN `listen-only on`, SLCAN `L`, candleLight) is added with refusal tests before it opens any hardware (D-081 item 2); Web Serial is browser-only, so the desktop has no USB adapter source until then.
 
 Defs are read at build time from `external/vehicle-defs` (`src/defs/index.ts`, Vite `?raw` imports); there is no built-in signal catalog.
 

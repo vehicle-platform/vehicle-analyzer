@@ -1,0 +1,23 @@
+[package]
+name = "vehicle-analyzer-desktop"
+version = "0.3.0"
+description = "vehicle-analyzer desktop shell (Tauri 2, D-081 stage 2)"
+authors = ["The vehicle-platform authors"]
+license = "MIT"
+edition = "2021"
+rust-version = "1.80"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+
+[features]
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]
+
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true

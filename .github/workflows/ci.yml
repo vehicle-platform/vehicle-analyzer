@@ -8,6 +8,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -38,8 +42,54 @@ jobs:
         run: npm run build
 
       # A8: every view opens with the virtual source, no console errors, no third-party request.
-      - name: Install Playwright Chromium
-        run: npx playwright install --with-deps chromium
+      - name: Install Playwright Chromium (retried, long download)
+        run: |
+          for i in 1 2 3; do npx playwright install --with-deps chromium && exit 0; echo "attempt $i failed"; done
+          exit 1
 
       - name: UI smoke tests
         run: npm run test:ui
+
+  # A6 desktop shell (D-081 stage 2): the Tauri wrapper compiles, lints clean and
+  # embeds the same frontend build. Bundles (.dmg, AppImage/.deb, .msi) come with
+  # the listen-only HAL.
+  desktop:
+    # macOS: Tauri 2 needs no extra system libraries there (ubuntu's webkit2gtk
+    # apt set is several hundred MB and has stalled the runner), and it is the
+    # developer machine's platform.
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Frontend build (embedded by the shell)
+        run: npm run build
+
+      - name: rustfmt
+        working-directory: src-tauri
+        run: cargo fmt --check
+
+      - name: clippy
+        working-directory: src-tauri
+        run: cargo clippy --locked --all-targets -- -D warnings
+
+      - name: cargo test
+        working-directory: src-tauri
+        run: cargo test --locked
