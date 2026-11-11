@@ -58,7 +58,10 @@ npm install
 npm run dev                      # http://localhost:5173
 npm test                         # vitest
 npm run build
+npm run tauri dev                # desktop shell (Tauri 2; rustup + system webkit libs)
 ```
+
+The desktop shell (`src-tauri/`) runs the same build in a Tauri 2 window with a strict CSP and no native commands yet; the listen-only CAN HAL follows with its refusal tests (D-081 item 2). Bundles come from CI once the HAL lands.
 
 To move to a newer defs tag: `git -C external/vehicle-defs fetch --tags && git -C external/vehicle-defs checkout vX.Y.Z`, run the tests, commit the submodule pointer and record the combination in `vehicle-workspace/manifest.yaml`.
 

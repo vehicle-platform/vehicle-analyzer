@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Main window: core defaults only; no shell, fs, http or serial plugins (D-081).",
+  "windows": ["main"],
+  "permissions": ["core:default"]
+}
