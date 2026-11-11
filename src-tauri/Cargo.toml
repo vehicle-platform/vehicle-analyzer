@@ -10,8 +10,12 @@ rust-version = "1.80"
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 
+[workspace]
+members = ["hal"]
+
 [dependencies]
 tauri = { version = "2", features = [] }
+vehicle-analyzer-hal = { path = "hal" }
 
 [features]
 default = ["custom-protocol"]
