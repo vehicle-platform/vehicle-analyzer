@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { ConnCaptureSummary } from '../src/services/connCaptureParser';
-import { CAPTURE_WARNINGS, captureWarnings } from '../src/services/captureQuality';
+import type { ConnCaptureSummary } from '@/services/connCaptureParser';
+import { CAPTURE_WARNINGS, captureWarnings } from '@/services/captureQuality';
 
 type Block = NonNullable<ConnCaptureSummary['block']>;
 

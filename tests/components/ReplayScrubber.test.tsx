@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { ReplayScrubber } from '../../src/components/ReplayScrubber';
+import { ReplayScrubber } from '@/components/ReplayScrubber';
 
 afterEach(cleanup);
 

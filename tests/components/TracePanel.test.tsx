@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { TracePanel } from '../../src/components/TracePanel';
+import { TracePanel } from '@/components/TracePanel';
 import { createStore, ingestFrame, platformMessage } from './helpers';
 
 afterEach(cleanup);

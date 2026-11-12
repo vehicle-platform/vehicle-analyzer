@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { DEFS } from '../src/defs';
-import { VirtualCanBus } from '../src/services/virtualBus';
-import { CaptureStore, LOG_CAPACITY, HISTORY_CAPACITY } from '../src/state/captureStore';
-import { SeriesRing, RingBuffer, lowerBound, sampleAt } from '../src/state/ring';
-import type { CanFrame } from '../src/types/can';
+import { DEFS } from '@/defs';
+import { VirtualCanBus } from '@/services/virtualBus';
+import { CaptureStore, LOG_CAPACITY, HISTORY_CAPACITY } from '@/state/captureStore';
+import { SeriesRing, RingBuffer, lowerBound, sampleAt } from '@/state/ring';
+import type { CanFrame } from '@/types/can';
 
 describe('ring buffers', () => {
   it('keep the newest samples in order and search by time', () => {

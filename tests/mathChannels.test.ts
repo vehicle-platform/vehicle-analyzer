@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { exportOscilloscopeCsv } from '../src/services/mathChannels';
+import { exportOscilloscopeCsv } from '@/services/mathChannels';
 
 describe('exportOscilloscopeCsv', () => {
   it('aligns channels on the union of timestamps with sample-and-hold', () => {

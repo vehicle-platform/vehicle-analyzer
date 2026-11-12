@@ -9,12 +9,12 @@ import {
   seriesRequest,
   sessionsRequest,
   summarizeReport,
-} from '../src/services/sessionClient';
-import { framesToItems, mergeSamples, replayMatchesSession } from '../src/services/replay';
-import { CaptureStore } from '../src/state/captureStore';
-import { availableChannels } from '../src/state/channels';
-import { didKey } from '../src/services/pipeline';
-import { DEFS } from '../src/defs';
+} from '@/services/sessionClient';
+import { framesToItems, mergeSamples, replayMatchesSession } from '@/services/replay';
+import { CaptureStore } from '@/state/captureStore';
+import { availableChannels } from '@/state/channels';
+import { didKey } from '@/services/pipeline';
+import { DEFS } from '@/defs';
 
 const good = {
   session_id: 's1',

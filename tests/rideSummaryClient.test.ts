@@ -8,7 +8,7 @@ import {
   parseRidesResponse,
   rideSummaryRequest,
   ridesRequest,
-} from '../src/services/sessionClient';
+} from '@/services/sessionClient';
 
 const summary = {
   session_id: 'ride-1',

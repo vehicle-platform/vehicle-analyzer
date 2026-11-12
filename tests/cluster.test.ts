@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { DEFS } from '../src/defs';
-import { READOUTS, ClusterInput, clusterInput, evaluateReadout, readoutSpec, staleLimitMs } from '../src/services/cluster';
-import { CaptureStore } from '../src/state/captureStore';
-import { formatSignal } from '../src/services/format';
-import type { CanFrame, DbcMessageDef } from '../src/types/can';
+import { DEFS } from '@/defs';
+import { READOUTS, ClusterInput, clusterInput, evaluateReadout, readoutSpec, staleLimitMs } from '@/services/cluster';
+import { CaptureStore } from '@/state/captureStore';
+import { formatSignal } from '@/services/format';
+import type { CanFrame, DbcMessageDef } from '@/types/can';
 
 const catalog = DEFS.platform.messages;
 

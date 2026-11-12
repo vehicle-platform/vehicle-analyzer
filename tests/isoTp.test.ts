@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { IsoTpReassembler } from '../src/services/isoTp';
+import { IsoTpReassembler } from '@/services/isoTp';
 
 const ID = 0x18daf110;
 

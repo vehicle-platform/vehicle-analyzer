@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { parseSlcanLine, SlcanScanner, WebSerialCanAdapter, type SlcanPort } from '../src/services/webSerialCan';
-import { parseStreamMessage } from '../src/services/streamClient';
-import { exportToVectorAsc } from '../src/services/exportService';
-import { parseVectorAsc, parseCanCsv } from '../src/services/logParser';
-import { exportToCsv } from '../src/services/exportService';
-import type { CanFrame } from '../src/types/can';
+import { parseSlcanLine, SlcanScanner, WebSerialCanAdapter, type SlcanPort } from '@/services/webSerialCan';
+import { parseStreamMessage } from '@/services/streamClient';
+import { exportToVectorAsc } from '@/services/exportService';
+import { parseVectorAsc, parseCanCsv } from '@/services/logParser';
+import { exportToCsv } from '@/services/exportService';
+import type { CanFrame } from '@/types/can';
 
 const frame = (over: Partial<CanFrame>): CanFrame => ({
   id: 0x110, idHex: '0x110', bus: 'platform', dlc: 8, data: [1, 2, 3, 4, 5, 6, 7, 8], timestamp: 1.5,

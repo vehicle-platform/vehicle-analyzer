@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { RideHistoryPanel } from '../../src/components/RideHistoryPanel';
+import { RideHistoryPanel } from '@/components/RideHistoryPanel';
 import { jsonResponse } from './helpers';
 
 const response = {

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { DesktopCanAdapter, frameFromEvent, isDesktop, FRAME_EVENT, TauriBridge, DesktopFrameEvent } from '../src/services/desktopCan';
+import { DesktopCanAdapter, frameFromEvent, isDesktop, FRAME_EVENT, TauriBridge, DesktopFrameEvent } from '@/services/desktopCan';
 
 function fakeBridge(openResult: 'ok' | string) {
   let handler: ((e: { payload: DesktopFrameEvent }) => void) | null = null;

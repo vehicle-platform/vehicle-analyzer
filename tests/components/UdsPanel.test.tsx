@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { UdsPanel } from '../../src/components/UdsPanel';
+import { UdsPanel } from '@/components/UdsPanel';
 import { createStore } from './helpers';
-import { DEFS } from '../../src/defs';
-import { composerServices } from '../../src/services/udsComposer';
-import { CanFrame } from '../../src/types/can';
+import { DEFS } from '@/defs';
+import { composerServices } from '@/services/udsComposer';
+import { CanFrame } from '@/types/can';
 
 afterEach(cleanup);
 

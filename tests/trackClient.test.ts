@@ -4,7 +4,7 @@ import {
   TrackClient,
   parseTrackResponse,
   trackRequest,
-} from '../src/services/trackClient';
+} from '@/services/trackClient';
 
 const good = {
   session_id: 'ride-1',

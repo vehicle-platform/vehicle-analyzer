@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
-import { HealthPanel } from '../../src/components/HealthPanel';
-import { DEFS } from '../../src/defs';
+import { HealthPanel } from '@/components/HealthPanel';
+import { DEFS } from '@/defs';
 import { createStore, ingestFrame, platformMessage } from './helpers';
 
 afterEach(cleanup);

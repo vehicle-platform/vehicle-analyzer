@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { SessionPanel } from '../../src/components/SessionPanel';
+import { SessionPanel } from '@/components/SessionPanel';
 import { jsonResponse } from './helpers';
 
 function installStorage(): Storage {

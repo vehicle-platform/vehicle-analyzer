@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { TrackPanel } from '../../src/components/TrackPanel';
+import { TrackPanel } from '@/components/TrackPanel';
 import { setThemeColors } from './helpers';
 
 const TRACK = {

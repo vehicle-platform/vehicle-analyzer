@@ -1,13 +1,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { DEFS } from '../src/defs';
-import { VirtualCanBus } from '../src/services/virtualBus';
-import { detectLogFormat, parseLogFrames } from '../src/services/logIngest';
-import { startLogIngest } from '../src/services/ingestClient';
-import { INGEST_BATCH_SIZE } from '../src/services/ingestProtocol';
-import { exportToCsv, exportToVectorAsc } from '../src/services/exportService';
-import type { ConnCaptureSummary } from '../src/services/connCaptureParser';
-import type { IngestFormat } from '../src/services/ingestProtocol';
-import type { CanFrame } from '../src/types/can';
+import { DEFS } from '@/defs';
+import { VirtualCanBus } from '@/services/virtualBus';
+import { detectLogFormat, parseLogFrames } from '@/services/logIngest';
+import { startLogIngest } from '@/services/ingestClient';
+import { INGEST_BATCH_SIZE } from '@/services/ingestProtocol';
+import { exportToCsv, exportToVectorAsc } from '@/services/exportService';
+import type { ConnCaptureSummary } from '@/services/connCaptureParser';
+import type { IngestFormat } from '@/services/ingestProtocol';
+import type { CanFrame } from '@/types/can';
 
 const CONN_TEXT = [
   '# vehicle-connectivity-node CAN capture: TWAI listen-only, 500 kbps, accept-all.',

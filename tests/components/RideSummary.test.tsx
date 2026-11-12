@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { RideSummary as RideSummaryView, useRideSummary } from '../../src/components/RideSummary';
+import { RideSummary as RideSummaryView, useRideSummary } from '@/components/RideSummary';
 import { jsonResponse } from './helpers';
 
 /** Test harness: the parent (SessionPanel) owns the fetch via `useRideSummary`. */

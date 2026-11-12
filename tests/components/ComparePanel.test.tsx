@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { ComparePanel } from '../../src/components/ComparePanel';
-import { DEFS } from '../../src/defs';
+import { ComparePanel } from '@/components/ComparePanel';
+import { DEFS } from '@/defs';
 import { jsonResponse, setThemeColors } from './helpers';
 
 afterEach(() => {

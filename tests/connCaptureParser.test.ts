@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseConnCapture } from '../src/services/connCaptureParser';
+import { parseConnCapture } from '@/services/connCaptureParser';
 
 const BANNER = '# vehicle-connectivity-node CAN capture: TWAI listen-only, 500 kbps, accept-all.';
 const CLEAN = [

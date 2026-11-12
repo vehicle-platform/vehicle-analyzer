@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { BringupCheck } from '../../src/components/BringupCheck';
+import { BringupCheck } from '@/components/BringupCheck';
 import { jsonResponse } from './helpers';
 
 const fail = (status: number, body: unknown) =>

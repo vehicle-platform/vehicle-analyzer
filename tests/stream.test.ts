@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { WebSocketStreamClient, StreamStatus, parseStreamMessage } from '../src/services/streamClient';
+import { WebSocketStreamClient, StreamStatus, parseStreamMessage } from '@/services/streamClient';
 
 /** Minimal stand-in for the browser WebSocket: records sends, lets the test drive events. */
 class FakeSocket {

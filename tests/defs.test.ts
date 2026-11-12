@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { DEFS, decodeDid, encodeDid } from '../src/defs';
+import { DEFS, decodeDid, encodeDid } from '@/defs';
 
 describe('pinned vehicle-defs', () => {
   it('loads the platform DBC with cycle times, E2E data IDs and value tables', () => {

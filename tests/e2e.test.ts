@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { crc8SaeJ1850, e2eProtect, E2EChecker } from '../src/services/e2e';
+import { crc8SaeJ1850, e2eProtect, E2EChecker } from '@/services/e2e';
 
 describe('E2E profile', () => {
   it('uses CRC-8/SAE-J1850 (catalogue check value 0x4B)', () => {

@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { CoveragePanel } from '../../src/components/CoveragePanel';
-import { DEFS } from '../../src/defs';
-import { buildCoverage } from '../../src/services/coverage';
-import { downloadFile } from '../../src/services/exportService';
+import { CoveragePanel } from '@/components/CoveragePanel';
+import { DEFS } from '@/defs';
+import { buildCoverage } from '@/services/coverage';
+import { downloadFile } from '@/services/exportService';
 import { jsonResponse } from './helpers';
 
 vi.mock('../../src/services/exportService', () => ({ downloadFile: vi.fn() }));
