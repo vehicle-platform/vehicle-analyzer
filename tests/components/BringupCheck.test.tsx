@@ -81,7 +81,7 @@ describe('BringupCheck', () => {
   });
 
   it('asks the server again when the gate changes', async () => {
-    const fetchMock = vi.fn(async () => jsonResponse(result('pass', [])));
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL) => jsonResponse(result('pass', [])));
     vi.stubGlobal('fetch', fetchMock);
     render(<BringupCheck {...props()} />);
     await screen.findByLabelText('Bring-up verdict');

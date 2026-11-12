@@ -113,7 +113,7 @@ describe('HealthWindows', () => {
   });
 
   it('makes one /summary request when the ride summary and the health windows are both shown', async () => {
-    const fetchMock = vi.fn(async () => jsonResponse(summary));
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL) => jsonResponse(summary));
     vi.stubGlobal('fetch', fetchMock);
     const Both: React.FC = () => {
       const { state, retry } = useRideSummary('', 'http://localhost:8000', 'ride-1');

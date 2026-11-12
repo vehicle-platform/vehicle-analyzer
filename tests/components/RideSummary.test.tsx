@@ -193,7 +193,7 @@ describe('RideSummary loaded state', () => {
   });
 
   it('fetches once per selected session, not per render or URL keystroke', async () => {
-    const fetchMock = vi.fn(async () => jsonResponse(summary));
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL) => jsonResponse(summary));
     vi.stubGlobal('fetch', fetchMock);
     const view = render(<RideSummary {...props()} />);
     await screen.findByText('12.35');
