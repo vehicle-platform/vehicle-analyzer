@@ -1,8 +1,10 @@
 {
   // Editor-only project for the tests: gives them the `@/` and `@defs/` paths from
   // tsconfig.app.json. Not referenced from the root tsconfig, so `tsc -b` (the build) does
-  // not type-check the tests; vitest resolves the aliases through vite.config.ts.
+  // not type-check the tests; vitest resolves the aliases through vite.config.ts. CI runs
+  // `tsc -p tests/tsconfig.json --noEmit` so the tests stay typed (T15). `vite-env.d.ts`
+  // declares the `define` constants (`__DEFS_REF__`) that src/ reads.
   "extends": "../tsconfig.app.json",
   "compilerOptions": { "types": ["vite/client", "vitest/globals", "node"] },
-  "include": ["."]
+  "include": [".", "../src/vite-env.d.ts"]
 }
