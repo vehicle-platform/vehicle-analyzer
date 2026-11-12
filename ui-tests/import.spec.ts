@@ -21,7 +21,9 @@ function watch(page: Page) {
 }
 
 /** 200 k ASC frames packed from the pinned platform DBC: no hand-written message facts. */
-function largeAsc(): { name: string; buffer: Buffer } {
+type Fixture = { name: string; mimeType: string; buffer: Buffer };
+
+function largeAsc(): Fixture {
   const dbc = readFileSync(new URL('../external/vehicle-defs/dbc/platform.dbc', import.meta.url), 'utf8');
   const message = parseDbcText(dbc).find((m) => m.dlc > 0 && m.cycleTimeMs);
   if (!message) throw new Error('platform.dbc has no periodic message to build the import fixture from');
@@ -33,12 +35,13 @@ function largeAsc(): { name: string; buffer: Buffer } {
     lines.push(`${(i * 0.01).toFixed(6).padStart(11, ' ')} 2  ${idHex.padEnd(15, ' ')} Rx   d ${message.dlc} ${data}`);
   }
   lines.push('End TriggerBlock');
-  return { name: 'import-200k.asc', buffer: Buffer.from(lines.join('\n')) };
+  return { name: 'import-200k.asc', mimeType: 'text/plain', buffer: Buffer.from(lines.join('\n')) };
 }
 
 /** A synthetic conn listen-only serial capture: generic IDs only, no real data. */
-function connCapture(): { name: string; buffer: Buffer } {
+function connCapture(): Fixture {
   return {
+    mimeType: 'text/plain',
     name: 'conn-listen-only.log',
     buffer: Buffer.from(
       [
