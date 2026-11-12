@@ -157,7 +157,7 @@ describe('TrackClient', () => {
 
   it('rejects a non-JSON answer', async () => {
     const client = new TrackClient('http://localhost:8000', '', async () =>
-      ({ ok: true, status: 200, statusText: 'OK', json: async () => { throw new Error('nope'); }, text: async () => 'nope' }) as Response
+      ({ ok: true, status: 200, statusText: 'OK', json: async () => { throw new Error('nope'); }, text: async () => 'nope' }) as unknown as Response
     );
     await expect(client.getTrack('ride-1')).rejects.toThrow(/not JSON/);
   });

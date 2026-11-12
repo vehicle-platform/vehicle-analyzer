@@ -10,7 +10,7 @@ import {
   xDomain,
   yDomain,
 } from '@/services/rideHistoryLayout';
-import type { RidesResponse, RidesRow } from '@/services/sessionClient';
+import type { RidesRow } from '@/services/sessionClient';
 
 const columns = [
   { name: 'derived.trip_distance', unit: 'km' },
@@ -21,7 +21,6 @@ const rows: RidesRow[] = [
   { sessionId: 'ride-2', createdUtc: '2026-01-02T10:00:00Z', values: { 'derived.trip_distance': null }, flags: { 'derived.trip_distance': 'missing' } },
   { sessionId: 'ride-3', createdUtc: '2026-01-03T10:00:00Z', values: { 'derived.trip_distance': 30 }, flags: { 'derived.trip_distance': 'ok' } },
 ];
-const response: RidesResponse = { columns, rows, skipped: 0 };
 
 describe('ride history layout', () => {
   it('keeps only response columns, defaults to the first and caps the selection', () => {

@@ -96,7 +96,7 @@ describe('RideHistoryPanel loaded state', () => {
   });
 
   it('sends the optional date range and switches the x axis', async () => {
-    const fetchMock = vi.fn(async () => jsonResponse(response));
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL) => jsonResponse(response));
     vi.stubGlobal('fetch', fetchMock);
     render(<RideHistoryPanel {...props()} />);
     fireEvent.change(screen.getByLabelText('Rides from (UTC)'), { target: { value: '2026-01-01' } });
