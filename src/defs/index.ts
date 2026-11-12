@@ -1,10 +1,10 @@
-import platformDbc from '../../external/vehicle-defs/dbc/platform.dbc?raw';
-import vehicleDbc from '../../external/vehicle-defs/dbc/cl250.dbc?raw';
-import vehicleYaml from '../../external/vehicle-defs/uds/vehicle_cl250.yaml?raw';
-import obdCatalogYaml from '../../external/vehicle-defs/uds/obd_catalog.yaml?raw';
-import iso14229Yaml from '../../external/vehicle-defs/uds/iso14229.yaml?raw';
-import derivedYaml from '../../external/vehicle-defs/derived/cl250_derived.yaml?raw';
-import limitsYaml from '../../external/vehicle-defs/limits/platform_limits.yaml?raw';
+import platformDbc from '@defs/dbc/platform.dbc?raw';
+import vehicleDbc from '@defs/dbc/cl250.dbc?raw';
+import vehicleYaml from '@defs/uds/vehicle_cl250.yaml?raw';
+import obdCatalogYaml from '@defs/uds/obd_catalog.yaml?raw';
+import iso14229Yaml from '@defs/uds/iso14229.yaml?raw';
+import derivedYaml from '@defs/derived/cl250_derived.yaml?raw';
+import limitsYaml from '@defs/limits/platform_limits.yaml?raw';
 import { buildDefs, Defs } from './model';
 
 export * from './model';

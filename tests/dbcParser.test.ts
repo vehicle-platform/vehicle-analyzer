@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { parseDbcText, decodeFrameSignals, extractRawValue } from '../src/services/dbcParser';
-import type { DbcSignalDef } from '../src/types/can';
+import { parseDbcText, decodeFrameSignals, extractRawValue } from '@/services/dbcParser';
+import type { DbcSignalDef } from '@/types/can';
 
 const sig = (over: Partial<DbcSignalDef>): DbcSignalDef => ({
   name: 'S', startBit: 0, bitLength: 8, isLittleEndian: true, isSigned: false,

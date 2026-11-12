@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { FrameTimingTracker, BusLoadMeter, frameBits } from '../src/services/capture';
-import { updateSnifferRecord, classifyBit } from '../src/services/sniffer';
-import type { CanFrame } from '../src/types/can';
+import { FrameTimingTracker, BusLoadMeter, frameBits } from '@/services/capture';
+import { updateSnifferRecord, classifyBit } from '@/services/sniffer';
+import type { CanFrame } from '@/types/can';
 
 const f = (id: number, t: number, data = [0, 0, 0, 0, 0, 0, 0, 0], bus = 'platform'): CanFrame => ({
   id, idHex: '', bus, dlc: data.length, data, timestamp: t, deltaMs: 0, isExtended: false, periodMs: 0, frequencyHz: 0, count: 0,

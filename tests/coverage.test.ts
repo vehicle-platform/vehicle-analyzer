@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFS } from '../src/defs';
+import { DEFS } from '@/defs';
 import {
   applySession,
   buildCoverage,
@@ -10,7 +10,7 @@ import {
   summarize,
   waitingFor,
   type CoverageRow,
-} from '../src/services/coverage';
+} from '@/services/coverage';
 
 describe('buildCoverage', () => {
   const rows = buildCoverage(DEFS);

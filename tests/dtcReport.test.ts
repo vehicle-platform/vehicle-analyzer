@@ -1,11 +1,11 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { parse } from 'yaml';
-import { DEFS } from '../src/defs';
-import { decodeDtcExtData, decodeDtcSnapshot } from '../src/services/dtcRecords';
-import { dtcReportToCsv, dtcReportToJson } from '../src/services/dtcReport';
-import { didHex } from '../src/services/format';
-import { formatDtc, DtcEntry } from '../src/services/udsMonitor';
+import { DEFS } from '@/defs';
+import { decodeDtcExtData, decodeDtcSnapshot } from '@/services/dtcRecords';
+import { dtcReportToCsv, dtcReportToJson } from '@/services/dtcReport';
+import { didHex } from '@/services/format';
+import { formatDtc, DtcEntry } from '@/services/udsMonitor';
 
 const vectors = parse(
   readFileSync(new URL('../external/vehicle-defs/tools/codegen/tests/vectors/dtc_records.yaml', import.meta.url), 'utf8')

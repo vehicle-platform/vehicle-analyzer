@@ -14,7 +14,7 @@ import {
   screenToWorld,
   worldToScreen,
   zoomAt,
-} from '../src/services/trackGeometry';
+} from '@/services/trackGeometry';
 
 const segment = (tMs: number[], xM: number[], yM: number[]) => ({ tMs, xM, yM });
 

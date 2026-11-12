@@ -1,8 +1,8 @@
-import { DEFS } from '../../src/defs';
-import { CaptureStore } from '../../src/state/captureStore';
-import { encodeFrameSignals } from '../../src/services/dbcParser';
-import { e2eProtect } from '../../src/services/e2e';
-import type { CanFrame, DbcMessageDef } from '../../src/types/can';
+import { DEFS } from '@/defs';
+import { CaptureStore } from '@/state/captureStore';
+import { encodeFrameSignals } from '@/services/dbcParser';
+import { e2eProtect } from '@/services/e2e';
+import type { CanFrame, DbcMessageDef } from '@/types/can';
 
 export const createStore = () => new CaptureStore(DEFS);
 

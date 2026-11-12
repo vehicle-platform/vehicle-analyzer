@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from 'vitest';
 import { cleanup, render, screen, within } from '@testing-library/react';
-import { CaptureQuality } from '../../src/components/CaptureQuality';
-import type { ConnCaptureSummary } from '../../src/services/connCaptureParser';
+import { CaptureQuality } from '@/components/CaptureQuality';
+import type { ConnCaptureSummary } from '@/services/connCaptureParser';
 
 afterEach(cleanup);
 

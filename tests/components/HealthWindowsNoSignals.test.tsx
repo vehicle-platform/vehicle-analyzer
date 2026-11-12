@@ -8,7 +8,7 @@ vi.mock('../../src/defs', async (importOriginal) => {
   return { ...actual, DEFS: { ...actual.DEFS, derivedSignals: actual.DEFS.derivedSignals.filter((signal) => signal.window !== 'W4_CRUISE') } };
 });
 
-import { HealthWindows } from '../../src/components/HealthWindows';
+import { HealthWindows } from '@/components/HealthWindows';
 
 const report = { derived_summary: { health_windows: { rule: 'r', t0_device_ms: 0, windows: {} } } };
 

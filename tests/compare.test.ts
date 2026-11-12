@@ -14,8 +14,8 @@ import {
   resample,
   sessionChannel,
   valueRange,
-} from '../src/services/compare';
-import { parseSeriesResponse, type RideSummary } from '../src/services/sessionClient';
+} from '@/services/compare';
+import { parseSeriesResponse, type RideSummary } from '@/services/sessionClient';
 
 const ch = (id: string, tMs: number[], v: number[], extra: Partial<SessionChannel> = {}): SessionChannel => ({
   sessionId: id,

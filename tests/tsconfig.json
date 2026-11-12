@@ -1,0 +1,8 @@
+{
+  // Editor-only project for the tests: gives them the `@/` and `@defs/` paths from
+  // tsconfig.app.json. Not referenced from the root tsconfig, so `tsc -b` (the build) does
+  // not type-check the tests; vitest resolves the aliases through vite.config.ts.
+  "extends": "../tsconfig.app.json",
+  "compilerOptions": { "types": ["vite/client", "vitest/globals", "node"] },
+  "include": ["."]
+}

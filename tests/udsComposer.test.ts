@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { DEFS } from '../src/defs';
-import { composeUdsRequest, checkTesterPolicy, composerServices } from '../src/services/udsComposer';
-import { UdsMonitor, formatDtc } from '../src/services/udsMonitor';
-import type { CanFrame } from '../src/types/can';
+import { DEFS } from '@/defs';
+import { composeUdsRequest, checkTesterPolicy, composerServices } from '@/services/udsComposer';
+import { UdsMonitor, formatDtc } from '@/services/udsMonitor';
+import type { CanFrame } from '@/types/can';
 
 describe('tester policy from defs', () => {
   it('builds a padded Single Frame for ReadDataByIdentifier', () => {

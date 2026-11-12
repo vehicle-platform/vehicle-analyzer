@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { DEFS } from '../src/defs';
-import { evaluateWindow } from '../src/services/windows';
-import { seriesOf } from '../src/state/ring';
+import { DEFS } from '@/defs';
+import { evaluateWindow } from '@/services/windows';
+import { seriesOf } from '@/state/ring';
 
 const series = (pts: [number, number][]) => seriesOf(pts.map(([time, value]) => ({ time, value })));
 

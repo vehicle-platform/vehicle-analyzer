@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { DEFS } from '../src/defs';
-import { parseHealthWindows } from '../src/services/healthWindows';
+import { DEFS } from '@/defs';
+import { parseHealthWindows } from '@/services/healthWindows';
 
 const instance = {
   start_ms: 3_000,

@@ -1,8 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { parse } from 'yaml';
-import { DEFS } from '../src/defs';
-import { decodeDtcExtData, decodeDtcSnapshot } from '../src/services/dtcRecords';
+import { DEFS } from '@/defs';
+import { decodeDtcExtData, decodeDtcSnapshot } from '@/services/dtcRecords';
 
 const vectors = parse(
   readFileSync(new URL('../external/vehicle-defs/tools/codegen/tests/vectors/dtc_records.yaml', import.meta.url), 'utf8')

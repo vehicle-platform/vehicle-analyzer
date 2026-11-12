@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { DEFS } from '../src/defs';
-import { VirtualCanBus } from '../src/services/virtualBus';
-import { UdsMonitor } from '../src/services/udsMonitor';
-import { FramePipeline } from '../src/services/pipeline';
-import type { CanFrame } from '../src/types/can';
+import { DEFS } from '@/defs';
+import { VirtualCanBus } from '@/services/virtualBus';
+import { UdsMonitor } from '@/services/udsMonitor';
+import { FramePipeline } from '@/services/pipeline';
+import type { CanFrame } from '@/types/can';
 
 function run(seconds: number) {
   const bus = new VirtualCanBus(DEFS);
@@ -73,8 +73,8 @@ describe('virtual bus against the defs', () => {
   });
 });
 
-import { exportToVectorAsc } from '../src/services/exportService';
-import { parseVectorAsc } from '../src/services/logParser';
+import { exportToVectorAsc } from '@/services/exportService';
+import { parseVectorAsc } from '@/services/logParser';
 
 describe('record and replay', () => {
   it('round-trips a simulated capture through Vector ASC with the same decoding and E2E', () => {

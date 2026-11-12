@@ -9,8 +9,8 @@ import {
   toggleColumn,
   xDomain,
   yDomain,
-} from '../src/services/rideHistoryLayout';
-import type { RidesResponse, RidesRow } from '../src/services/sessionClient';
+} from '@/services/rideHistoryLayout';
+import type { RidesResponse, RidesRow } from '@/services/sessionClient';
 
 const columns = [
   { name: 'derived.trip_distance', unit: 'km' },

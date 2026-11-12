@@ -7,8 +7,8 @@ import {
   maxCellValue,
   precisionForAxis,
   precisionForRange,
-} from '../src/services/rideSummaryLayout';
-import type { RideSummaryBinned } from '../src/services/sessionClient';
+} from '@/services/rideSummaryLayout';
+import type { RideSummaryBinned } from '@/services/sessionClient';
 
 const binned: RideSummaryBinned = {
   name: 'derived.operating_point_time',

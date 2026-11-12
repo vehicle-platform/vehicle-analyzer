@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { SessionRow } from '../src/services/sessionClient';
+import type { SessionRow } from '@/services/sessionClient';
 import {
   SESSION_FILTER_STORAGE_KEY,
   defaultSessionFilter,
@@ -8,7 +8,7 @@ import {
   parseUtcBound,
   saveSessionFilter,
   sessionStatuses,
-} from '../src/services/sessionFilter';
+} from '@/services/sessionFilter';
 
 const rows: SessionRow[] = [
   { session_id: 'ride-a', status: 'ok', created_utc: '2026-01-15T00:00:00Z', loss_percent: 1 },

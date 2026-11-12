@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { DEFAULT_LAYOUT, LAYOUT_STORAGE_KEY, parseLayout, readLayout, writeLayout } from '../../src/ui/layout';
+import { DEFAULT_LAYOUT, LAYOUT_STORAGE_KEY, parseLayout, readLayout, writeLayout } from '@/ui/layout';
 
 function memoryStorage(): Storage {
   const values = new Map<string, string>();

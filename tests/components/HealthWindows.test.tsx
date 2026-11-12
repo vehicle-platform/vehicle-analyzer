@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
-import { HealthWindows as HealthWindowsView } from '../../src/components/HealthWindows';
-import { RideSummary, useRideSummary } from '../../src/components/RideSummary';
+import { HealthWindows as HealthWindowsView } from '@/components/HealthWindows';
+import { RideSummary, useRideSummary } from '@/components/RideSummary';
 import { jsonResponse } from './helpers';
 
 const instance = {
