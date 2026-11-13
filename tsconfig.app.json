@@ -8,10 +8,9 @@
 
     /* Bundler mode */
     "moduleResolution": "bundler",
-    "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"],
-      "@defs/*": ["external/vehicle-defs/*"]
+      "@/*": ["./src/*"],
+      "@defs/*": ["./external/vehicle-defs/*"]
     },
     "allowImportingTsExtensions": false,
     "resolveJsonModule": true,
