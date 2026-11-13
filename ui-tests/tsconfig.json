@@ -1,0 +1,8 @@
+{
+  // Editor and CI project for the Playwright UI tests (not part of `tsc -b`). Same
+  // compiler options as the app so the editor and CI agree; the specs import only
+  // `@playwright/test` and node built-ins.
+  "extends": "../tsconfig.app.json",
+  "compilerOptions": { "types": ["node"], "jsx": "preserve" },
+  "include": [".", "../playwright.config.ts"]
+}

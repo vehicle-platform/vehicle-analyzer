@@ -38,7 +38,9 @@ jobs:
       # The tests are not part of `tsc -b` (tests/tsconfig.json is editor-only); this
       # keeps the fetch mocks and fixtures typed. 0 errors expected.
       - name: Type-check tests
-        run: npx tsc -p tests/tsconfig.json --noEmit
+        run: |
+          npx tsc -p tests/tsconfig.json --noEmit
+          npx tsc -p ui-tests/tsconfig.json --noEmit
 
       - name: Test
         run: npm test
