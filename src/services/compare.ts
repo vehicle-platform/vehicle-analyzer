@@ -1,3 +1,4 @@
+import { csvCell } from './csv';
 import type { PerGearSummary, RecordedSeries, RideSummary, RideSummaryRange, RideSummarySignal, SeriesResponse } from './sessionClient';
 
 /**
@@ -328,7 +329,7 @@ export function compareToCsv(r: CompareResult, summaries: RideSummaryCompareRow[
     lines.push(`# ride summaries; A=${oneLine(r.sessionA)}; B=${oneLine(r.sessionB)}`, 'name,A,B,B_minus_A,unit');
     const cell = (value: number | null, status: string): string => (value !== null ? num(value) : status === 'computed' ? '' : oneLine(status));
     for (const row of summaries) {
-      lines.push([oneLine(row.name), cell(row.aValue, row.aStatus), cell(row.bValue, row.bStatus), num(row.diff), oneLine(row.unit)].join(','));
+      lines.push([csvCell(oneLine(row.name)), csvCell(cell(row.aValue, row.aStatus)), csvCell(cell(row.bValue, row.bStatus)), num(row.diff), csvCell(oneLine(row.unit))].join(','));
     }
   }
   return lines.join('\n') + '\n';

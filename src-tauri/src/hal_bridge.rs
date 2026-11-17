@@ -67,6 +67,42 @@ fn event(frame: Frame, bus: &str) -> FrameEvent {
     }
 }
 
+/// The two bus kinds a frame can be tagged with (D-081): the UI decodes with the DBC of this bus.
+pub const BUS_KINDS: [&str; 2] = ["vehicle", "platform"];
+
+/// Validates the bus tag of an open request (pure, tested).
+pub fn validate_bus(bus: &str) -> Result<(), String> {
+    if BUS_KINDS.contains(&bus) {
+        Ok(())
+    } else {
+        Err(format!("unknown bus {bus:?}: expected vehicle or platform"))
+    }
+}
+
+fn is_ifname_byte(b: u8) -> bool {
+    b.is_ascii_alphanumeric() || matches!(b, b'_' | b'-' | b'.')
+}
+
+/// A SocketCAN interface name: the kernel limit is 15 bytes (IFNAMSIZ - 1), plain
+/// ASCII letters, digits, `_`, `-`, `.` and no path separators (pure, tested).
+pub fn validate_interface_name(name: &str) -> Result<(), String> {
+    if !name.is_empty() && name.len() <= 15 && name.bytes().all(is_ifname_byte) {
+        Ok(())
+    } else {
+        Err(format!("invalid CAN interface name {name:?}"))
+    }
+}
+
+/// `name` must be one of the serial ports the OS enumerates now, so the UI cannot make the
+/// shell open an arbitrary path such as a device node or a file (pure, tested).
+pub fn validate_port_name(name: &str, enumerated: &[String]) -> Result<(), String> {
+    if enumerated.iter().any(|p| p == name) {
+        Ok(())
+    } else {
+        Err(format!("{name:?} is not a serial port reported by the system"))
+    }
+}
+
 /// Which backend serves a request on this build (pure, tested).
 pub fn backend_available(kind: AdapterKind) -> Result<(), OpenError> {
     match kind {
@@ -103,6 +139,11 @@ pub fn hal_open(
     request: OpenRequest,
 ) -> Result<(), String> {
     backend_available(request.kind).map_err(|e| e.to_string())?;
+    validate_bus(&request.bus)?;
+    match request.kind {
+        AdapterKind::Slcan => validate_slcan_port(&request.name)?,
+        AdapterKind::Socketcan => validate_interface_name(&request.name)?,
+    }
     state.stop();
     let running = Arc::new(AtomicBool::new(true));
     match request.kind {
@@ -117,6 +158,18 @@ pub fn hal_open(
 #[tauri::command]
 pub fn hal_close(state: State<'_, HalState>) {
     state.stop();
+}
+
+#[cfg(feature = "slcan")]
+fn validate_slcan_port(name: &str) -> Result<(), String> {
+    let ports = vehicle_analyzer_hal::slcan::serial::available_port_names()
+        .map_err(|e| e.to_string())?;
+    validate_port_name(name, &ports)
+}
+
+#[cfg(not(feature = "slcan"))]
+fn validate_slcan_port(_: &str) -> Result<(), String> {
+    Err(OpenError::BackendUnavailable("slcan").to_string())
 }
 
 #[cfg(feature = "slcan")]
@@ -159,6 +212,37 @@ mod tests {
     fn slcan_availability_follows_the_feature() {
         let r = backend_available(AdapterKind::Slcan);
         assert_eq!(r.is_ok(), cfg!(feature = "slcan"));
+    }
+
+    #[test]
+    fn only_the_two_bus_kinds_are_accepted() {
+        assert!(validate_bus("vehicle").is_ok());
+        assert!(validate_bus("platform").is_ok());
+        for bad in ["", "Vehicle", "can0", "vehicle ", "../x"] {
+            assert!(validate_bus(bad).is_err(), "{bad:?}");
+        }
+    }
+
+    #[test]
+    fn interface_names_are_plain_and_short() {
+        for ok in ["can0", "vcan0", "can-1", "slcan0"] {
+            assert!(validate_interface_name(ok).is_ok(), "{ok}");
+        }
+        for bad in ["", "../etc", "can0/x", "a b"] {
+            assert!(validate_interface_name(bad).is_err(), "{bad:?}");
+        }
+        assert!(validate_interface_name("averyveryverylongname").is_err());
+        assert!(validate_interface_name("can\u{e9}").is_err());
+    }
+
+    #[test]
+    fn serial_ports_must_be_enumerated() {
+        let ports = vec!["/dev/cu.usbmodem1".to_string(), "COM3".to_string()];
+        assert!(validate_port_name("COM3", &ports).is_ok());
+        assert!(validate_port_name("/dev/cu.usbmodem1", &ports).is_ok());
+        assert!(validate_port_name("/dev/sda", &ports).is_err());
+        assert!(validate_port_name("", &ports).is_err());
+        assert!(validate_port_name("COM3", &[]).is_err());
     }
 
     #[test]

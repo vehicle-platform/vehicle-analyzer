@@ -1,4 +1,5 @@
 import React from 'react';
+import { CLEARTEXT_WARNING, isCleartextRemoteUrl } from '../services/cleartext';
 import { BusRole, CockpitTab, DesktopAdapterKind, TelemetrySource } from '../types/can';
 import type { BusLoad } from '../state/captureStore';
 import type { WsStatus } from '../App';
@@ -143,6 +144,7 @@ export const Header: React.FC<HeaderProps> = (p) => {
                   p.wsStatus === 'connected' ? 'text-term-fg' : p.wsStatus === 'connecting' ? 'text-term-amber' : 'text-term-red'
                 }
               >
+                {isCleartextRemoteUrl(p.wsUrl) ? <span className="text-term-amber" role="alert" title={CLEARTEXT_WARNING}>! cleartext </span> : null}
                 {p.wsStatus === 'connected' ? 'connected' : p.wsStatus === 'connecting' ? '! connecting' : `■ ${p.wsStatus}`}
                 {p.wsStatus === 'connected' && p.wsSource ? <span className={p.wsSource === 'mock' ? 'text-term-amber' : 'text-term-dim'}> · source {p.wsSource}</span> : null}
               </span>

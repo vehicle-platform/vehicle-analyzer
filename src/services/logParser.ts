@@ -1,5 +1,9 @@
 import { CanFrame } from '../types/can';
+import { splitCsvLine } from './csv';
 import { ascChannelToBus } from './exportService';
+
+/** Largest DLC accepted from an imported log (CAN FD maximum). */
+const MAX_DLC = 64;
 
 /**
  * Parses Vector ASCII (.asc) file format into CanFrame array
@@ -27,11 +31,14 @@ export function parseVectorAsc(ascText: string): CanFrame[] {
       const cleanIdStr = (isExtended ? rawId.slice(0, -1) : rawId).replace(/^0x/, '');
       const id = parseInt(cleanIdStr, 16);
       const dlc = parseInt(match[5], 10);
+      // Reject NaN/oversized fields instead of letting junk keys reach the capture maps.
+      if (!Number.isFinite(timestamp) || !Number.isFinite(id) || !Number.isFinite(dlc) || dlc > MAX_DLC) continue;
       const dataBytes = match[6]
         .trim()
         .split(/\s+/)
         .filter((hex) => hex.length > 0)
         .map((hex) => parseInt(hex, 16))
+        .filter((byte) => Number.isFinite(byte))
         .slice(0, dlc);
       const bus = ascChannelToBus(parseInt(match[2], 10));
 
@@ -66,7 +73,7 @@ export function parseCanCsv(csvText: string): CanFrame[] {
     const line = lines[i].trim();
     if (!line) continue;
 
-    const parts = line.split(',');
+    const parts = splitCsvLine(line);
     if (parts.length >= 7) {
       const timestamp = parseFloat(parts[0]);
       const bus = parts[2] || 'can0';
@@ -81,7 +88,7 @@ export function parseCanCsv(csvText: string): CanFrame[] {
         dataBytes.push(parseInt(dataHex.substr(b, 2), 16));
       }
 
-      if (!Number.isFinite(timestamp) || !Number.isFinite(id)) continue;
+      if (!Number.isFinite(timestamp) || !Number.isFinite(id) || dlc > MAX_DLC) continue;
       const isExtended = id > 0x7ff;
 
       frames.push({

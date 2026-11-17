@@ -33,6 +33,7 @@ export const MATH_OP_LABEL: Record<MathOp, string> = {
   ratio: 'A ÷ B',
 };
 
+import { csvQuoted } from './csv';
 import { SeriesLike, lowerBound } from '../state/ring';
 
 type Series = { time: number; value: number }[];
@@ -107,7 +108,7 @@ export function exportOscilloscopeCsv(channels: CsvExportChannel[], minTime?: nu
   const sortedTimes = Array.from(timeSet).sort((a, b) => a - b);
 
   // Header line
-  const headers = ['Time_s', ...channels.map((ch) => `"${ch.label} (${ch.unit})"` )];
+  const headers = ['Time_s', ...channels.map((ch) => csvQuoted(`${ch.label} (${ch.unit})`))];
   const lines: string[] = [headers.join(',')];
 
   // Map each channel's points by quantized time for quick lookup

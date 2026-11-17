@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { CLEARTEXT_WARNING, isCleartextRemoteUrl } from '../services/cleartext';
 import { Note, Segmented, TermButton, TermInput, Toolbar, cn } from '../ui/primitives';
 import { Empty, GutterMark, ListHead } from '../ui/panel-parts';
 import { useHotkeys } from '../ui/keys';
@@ -120,6 +121,7 @@ export const SessionPanel: React.FC<SessionPanelProps> = ({ token, onTokenChange
     <div className="flex h-full select-none flex-col bg-term-bg">
       <Toolbar>
         <TermInput value={serverUrl} onChange={(e) => onServerUrlChange(e.target.value)} aria-label="vehicle-server URL" spellCheck={false} className="w-64" />
+        {isCleartextRemoteUrl(serverUrl) ? <span className="text-term-amber" role="alert" title={CLEARTEXT_WARNING}>! cleartext</span> : null}
         <TermInput
           type="password"
           value={token}

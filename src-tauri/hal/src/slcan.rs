@@ -19,29 +19,53 @@ pub enum Event {
     Line(String),
 }
 
+/// Longest line the parser keeps. The longest valid line is an extended frame
+/// (`T` + 8 id + 1 dlc + 16 data = 26 chars), a timestamp suffix adds 4 and a
+/// version reply is shorter; 64 leaves room. A device that never ends a line
+/// must not grow memory without bound.
+pub const MAX_LINE_LEN: usize = 64;
+
 /// Splits a byte stream into [`Event`]s across reads.
 #[derive(Debug, Default)]
 pub struct Parser {
     buf: String,
+    /// The current line overflowed: drop it up to the next line end.
+    discarding: bool,
+    /// Lines dropped for being longer than [`MAX_LINE_LEN`].
+    dropped: usize,
 }
 
 impl Parser {
+    /// Number of over-long lines dropped so far.
+    pub fn dropped(&self) -> usize {
+        self.dropped
+    }
+
     pub fn feed(&mut self, bytes: &[u8]) -> Vec<Event> {
         let mut out = Vec::new();
         for &b in bytes {
             match b {
                 b'\x07' => {
                     self.buf.clear();
+                    self.discarding = false;
                     out.push(Event::Error);
                 }
                 b'\r' => {
-                    if self.buf.is_empty() {
+                    if self.discarding {
+                        self.discarding = false;
+                    } else if self.buf.is_empty() {
                         out.push(Event::Ok);
                     } else {
                         out.push(Event::Line(std::mem::take(&mut self.buf)));
                     }
                 }
                 b'\n' => {}
+                _ if self.discarding => {}
+                _ if self.buf.len() >= MAX_LINE_LEN => {
+                    self.buf.clear();
+                    self.discarding = true;
+                    self.dropped += 1;
+                }
                 _ => self.buf.push(b as char),
             }
         }
@@ -191,6 +215,11 @@ impl Session {
 
 /// Decodes `tIIIL<data>` / `TIIIIIIIIL<data>` lines; remote and unknown lines give `None`.
 pub fn parse_frame(line: &str, rx_time: Duration) -> Option<Frame> {
+    // Non-ASCII text (a garbled or hostile adapter) would make the byte-index
+    // slices below cut through a character and panic: refuse it up front.
+    if !line.is_ascii() {
+        return None;
+    }
     let mut chars = line.chars();
     let kind = chars.next()?;
     let (extended, id_len) = match kind {
@@ -232,6 +261,13 @@ pub mod serial {
 
     use super::{BitrateCode, Parser, Session, Step};
     use crate::{Frame, OpenError};
+
+    /// Names of the serial ports the OS reports now (the shell accepts only these).
+    pub fn available_port_names() -> Result<Vec<String>, OpenError> {
+        serialport::available_ports()
+            .map(|ports| ports.into_iter().map(|p| p.port_name).collect())
+            .map_err(|e| OpenError::Io(e.to_string()))
+    }
 
     pub struct SlcanAdapter {
         port: Box<dyn serialport::SerialPort>,
@@ -444,6 +480,28 @@ mod tests {
         assert!(parse_frame("t12390011", T0).is_none()); // dlc 9
         assert!(parse_frame("t1232zz", T0).is_none());
         assert!(parse_frame("t1", T0).is_none());
+    }
+
+    #[test]
+    fn frame_parsing_never_panics_on_non_ascii_or_short_input() {
+        for line in ["", "t", "T", "t12", "t123", "t1232"] {
+            assert!(parse_frame(line, T0).is_none(), "{line:?}");
+        }
+        for line in ["t12\u{e9}1", "t\u{e9}\u{e9}\u{e9}0", "T1\u{e9}345678\u{e9}"] {
+            assert!(parse_frame(line, T0).is_none(), "{line:?}");
+        }
+        assert!(parse_frame("t1232\u{e9}\u{e9}", T0).is_none());
+    }
+
+    #[test]
+    fn parser_bounds_a_line_without_a_line_end_and_recovers() {
+        let mut p = Parser::default();
+        let junk = vec![b'A'; MAX_LINE_LEN * 10];
+        assert_eq!(p.feed(&junk), vec![]);
+        assert_eq!(p.dropped(), 1);
+        // The rest of the over-long line is discarded, the next line is intact.
+        assert_eq!(p.feed(b"AAA\rt123100\r"), vec![Event::Line("t123100".into())]);
+        assert_eq!(p.feed(b"\r"), vec![Event::Ok]);
     }
 
     #[test]

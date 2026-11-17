@@ -1,3 +1,4 @@
+import { csvCell } from './csv';
 import type { Defs, DerivedClass } from '../defs/model';
 
 /**
@@ -308,8 +309,6 @@ export function defsStatusLabel(row: CoverageRow): string {
       return row.defsStatus.kind === 'derived' && row.defsStatus.pendingInputs.length > 0 ? 'pending inputs' : 'no pending inputs';
   }
 }
-
-const csvCell = (value: string): string => (/[",\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value);
 
 /** CSV of exactly the rows passed in (the view exports the visible rows). */
 export function coverageToCsv(rows: CoverageRow[]): string {
