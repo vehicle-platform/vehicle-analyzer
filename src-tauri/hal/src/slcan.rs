@@ -500,7 +500,10 @@ mod tests {
         assert_eq!(p.feed(&junk), vec![]);
         assert_eq!(p.dropped(), 1);
         // The rest of the over-long line is discarded, the next line is intact.
-        assert_eq!(p.feed(b"AAA\rt123100\r"), vec![Event::Line("t123100".into())]);
+        assert_eq!(
+            p.feed(b"AAA\rt123100\r"),
+            vec![Event::Line("t123100".into())]
+        );
         assert_eq!(p.feed(b"\r"), vec![Event::Ok]);
     }
 

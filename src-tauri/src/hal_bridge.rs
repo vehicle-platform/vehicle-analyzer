@@ -99,7 +99,9 @@ pub fn validate_port_name(name: &str, enumerated: &[String]) -> Result<(), Strin
     if enumerated.iter().any(|p| p == name) {
         Ok(())
     } else {
-        Err(format!("{name:?} is not a serial port reported by the system"))
+        Err(format!(
+            "{name:?} is not a serial port reported by the system"
+        ))
     }
 }
 
@@ -162,8 +164,8 @@ pub fn hal_close(state: State<'_, HalState>) {
 
 #[cfg(feature = "slcan")]
 fn validate_slcan_port(name: &str) -> Result<(), String> {
-    let ports = vehicle_analyzer_hal::slcan::serial::available_port_names()
-        .map_err(|e| e.to_string())?;
+    let ports =
+        vehicle_analyzer_hal::slcan::serial::available_port_names().map_err(|e| e.to_string())?;
     validate_port_name(name, &ports)
 }
 
