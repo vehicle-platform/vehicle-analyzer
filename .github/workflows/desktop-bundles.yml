@@ -36,7 +36,7 @@ jobs:
             glob: src-tauri/target/release/bundle/msi/*.msi
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           submodules: true
 
@@ -52,13 +52,15 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
 
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
+        with:
+          toolchain: stable
 
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
         with:
           workspaces: src-tauri
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 20
           cache: npm
@@ -69,7 +71,7 @@ jobs:
       - name: Build bundles
         run: npm run tauri build -- --bundles ${{ matrix.bundles }}
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: vehicle-analyzer-${{ matrix.os }}
           path: ${{ matrix.glob }}
@@ -80,6 +82,7 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.release.tag_name }}
         run: |
           files=$(ls src-tauri/target/release/bundle/*/*.dmg src-tauri/target/release/bundle/*/*.AppImage src-tauri/target/release/bundle/*/*.deb src-tauri/target/release/bundle/*/*.msi 2>/dev/null || true)
-          test -n "$files" && gh release upload "${{ github.event.release.tag_name }}" $files --clobber
+          test -n "$files" && gh release upload "$TAG" $files --clobber
