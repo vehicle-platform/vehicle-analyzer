@@ -1,4 +1,5 @@
 import { Defs } from '../defs/model';
+import { csvRow } from './csv';
 import { decodeDtcExtDataRecords, decodeDtcSnapshotRecords } from './dtcRecords';
 import { didHex } from './format';
 import { DtcEntry } from './udsMonitor';
@@ -10,8 +11,6 @@ const hexBytes = (data: number[]) => data.map(hexByte).join('');
 const hexDtc = (dtc: number) => `0x${dtc.toString(16).toUpperCase().padStart(6, '0')}`;
 const hexStatus = (status: number) => `0x${hexByte(status)}`;
 
-const csvCell = (text: string): string => (/[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text);
-const csvRow = (cells: string[]): string => cells.map(csvCell).join(',');
 
 const valueText = (value: unknown): string => (value === null || value === undefined ? '' : String(value));
 

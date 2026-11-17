@@ -8,6 +8,7 @@ import type { ConnCaptureSummary } from '../services/connCaptureParser';
 import { CaptureQuality } from './CaptureQuality';
 import { Na, Note, TermButton, Toolbar, cn } from '../ui/primitives';
 import { useHotkeys } from '../ui/keys';
+import { logFileSizeError } from '../services/importLimits';
 import { GutterMark, ListHead, TD, TH } from '../ui/panel-parts';
 
 interface SyncPanelProps {
@@ -97,6 +98,13 @@ export const SyncPanel: React.FC<SyncPanelProps> = ({ store, source, onLogLoaded
     if (!file) return;
 
     if (importState.status === 'running') cancelImport();
+    const sizeError = logFileSizeError(file.name, file.size);
+    if (sizeError) {
+      importSeq.current += 1;
+      setStatus('');
+      setImportState({ status: 'error', name: file.name, message: sizeError });
+      return;
+    }
     const id = ++importSeq.current;
     const frames: CanFrame[] = [];
     let finished = false;

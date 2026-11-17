@@ -1,4 +1,5 @@
 import { CanFrame } from '../types/can';
+import { csvCell } from './csv';
 
 /** ASC channel numbers follow the vehicle-server convention: 1 = vehicle bus, 2 = platform bus. */
 export function busToAscChannel(bus: string): number {
@@ -57,15 +58,15 @@ export function exportToCsv(frames: CanFrame[]): string {
   frames.forEach((f) => {
     const dataHex = f.data.map((b) => b.toString(16).toUpperCase().padStart(2, '0')).join('');
     const decodedStr = f.decodedSignals
-      ? `"${Object.entries(f.decodedSignals).map(([k, v]) => `${k}=${v}`).join('; ')}"`
-      : '""';
+      ? csvCell(Object.entries(f.decodedSignals).map(([k, v]) => `${k}=${v}`).join('; '))
+      : '';
 
     const row = [
       f.timestamp.toFixed(6),
       f.deltaMs.toFixed(2),
-      f.bus,
+      csvCell(f.bus),
       f.idHex,
-      `"${f.name || ''}"`,
+      csvCell(f.name || ''),
       f.dlc,
       dataHex,
       decodedStr,
