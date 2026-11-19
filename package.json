@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "lint": "eslint . --max-warnings 352",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "test:ui": "playwright test",
     "tauri": "tauri"
   },
@@ -30,6 +31,7 @@
     "@types/react": "^18.3.18",
     "@types/react-dom": "^18.3.5",
     "@vitejs/plugin-react": "^4.3.4",
+    "@vitest/coverage-v8": "^4.1.12",
     "autoprefixer": "^10.4.20",
     "eslint": "^10.15.0",
     "eslint-plugin-react-hooks": "^7.1.1",
