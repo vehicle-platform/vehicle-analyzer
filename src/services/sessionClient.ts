@@ -452,8 +452,8 @@ export function parseRideSummary(json: unknown): RideSummary {
   if (!Array.isArray(json.signals)) return malformedSummary('signals is not a list');
   return {
     sessionId: json.session_id,
-    rideDefinition: json.ride_definition as string | null,
-    defsVersion: json.defs_version as string | null,
+    rideDefinition: json.ride_definition,
+    defsVersion: json.defs_version,
     signals: json.signals.map(parseSummarySignal),
   };
 }
@@ -490,7 +490,7 @@ export function parseRidesResponse(json: unknown): RidesResponse {
       values[column.name] = value;
       flags[column.name] = flag;
     }
-    rows.push({ sessionId: raw.session_id, createdUtc: raw.created_utc as string | null, values, flags });
+    rows.push({ sessionId: raw.session_id, createdUtc: raw.created_utc, values, flags });
   }
   if (!Number.isInteger(json.skipped) || (json.skipped as number) < 0) return malformedRides('skipped is not a non-negative integer');
   return { columns, rows, skipped: json.skipped as number };

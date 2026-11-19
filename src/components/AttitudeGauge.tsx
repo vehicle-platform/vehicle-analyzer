@@ -95,7 +95,7 @@ export const AttitudeGauge: React.FC<AttitudeGaugeProps> = ({ store }) => {
 
   const leanState = leanFrame ? formatSignal(sig(leanMsg, 'LEAN_ANGLE_STATE'), leanFrame.decodedSignals?.LEAN_ANGLE_STATE) : 'NO DATA';
   const leanUsable = leanFrame && (leanState === 'ESTIMATED' || leanState === 'CLAMPED');
-  const lean = leanUsable ? Number(leanFrame!.decodedSignals?.LEAN_ANGLE ?? 0) : null;
+  const lean = leanUsable ? Number(leanFrame.decodedSignals?.LEAN_ANGLE ?? 0) : null;
   const quality = leanFrame?.decodedSignals?.LEAN_ANGLE_QUALITY;
 
   const level = warnFrame ? formatSignal(sig(warnMsg, 'CORNERING_LEVEL'), warnFrame.decodedSignals?.CORNERING_LEVEL) : 'UNAVAILABLE';

@@ -117,7 +117,7 @@ const sessionTone = (status: string): string =>
 export const CoveragePanel: React.FC<CoveragePanelProps> = ({ token, onTokenChange, serverUrl, onServerUrlChange, selectedSessionId }) => {
   const rows = useMemo(() => buildCoverage(DEFS), []);
   const [sessionId, setSessionId] = useState('');
-  const [report, setReport] = useState<unknown | null>(null);
+  const [report, setReport] = useState<unknown>(null);
   const [reportFor, setReportFor] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);

@@ -73,8 +73,8 @@ export class WebSerialCanAdapter {
     if (!this.isSupported()) {
       throw new Error('WebSerial API is not supported in this browser. Please use Chrome, Edge, or Brave.');
     }
-    // @ts-ignore
-    const port: SlcanPort = await navigator.serial.requestPort();
+    const serial = (navigator as Navigator & { serial: { requestPort(): Promise<SlcanPort> } }).serial;
+    const port: SlcanPort = await serial.requestPort();
     return this.openPort(port, baudRate, onFrame);
   }
 
@@ -88,7 +88,7 @@ export class WebSerialCanAdapter {
       this.onFrameCallback = onFrame;
       this.port = port;
       await this.port.open({ baudRate });
-      this.readLoop();
+      void this.readLoop();
 
       // Invariant 1: on the vehicle bus the analyzer only listens. Open the SLCAN
       // channel in listen-only mode (`L`), never in normal mode (`O`), so the adapter
@@ -171,7 +171,7 @@ export class WebSerialCanAdapter {
   private async readLoop() {
     if (!this.port?.readable) return;
     const textDecoder = new TextDecoderStream();
-    this.readableStreamClosed = this.port.readable.pipeTo(textDecoder.writable as WritableStream<Uint8Array>);
+    this.readableStreamClosed = this.port.readable.pipeTo(textDecoder.writable);
     const reader = textDecoder.readable.getReader();
     this.reader = reader;
 

@@ -12,7 +12,7 @@ const hexDtc = (dtc: number) => `0x${dtc.toString(16).toUpperCase().padStart(6, 
 const hexStatus = (status: number) => `0x${hexByte(status)}`;
 
 
-const valueText = (value: unknown): string => (value === null || value === undefined ? '' : String(value));
+const valueText = (value: unknown): string => (value === null || value === undefined ? '' : typeof value === 'string' ? value : typeof value === 'number' || typeof value === 'boolean' || typeof value === 'bigint' ? String(value) : JSON.stringify(value));
 
 export function dtcReportToJson(defs: Defs, dtcs: DtcEntry[]): string {
   return JSON.stringify(
