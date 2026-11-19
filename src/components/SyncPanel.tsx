@@ -51,7 +51,7 @@ export const SyncPanel: React.FC<SyncPanelProps> = ({ store, source, onLogLoaded
 
   const readFile = (file: File, cb: (text: string) => void) => {
     const reader = new FileReader();
-    reader.onload = (e) => cb(String(e.target?.result ?? ''));
+    reader.onload = (e) => cb(typeof e.target?.result === 'string' ? e.target.result : '');
     reader.readAsText(file);
   };
 
@@ -156,7 +156,7 @@ export const SyncPanel: React.FC<SyncPanelProps> = ({ store, source, onLogLoaded
 
   // j/k walk the list (platform messages, then the UDS DID entry). App owns the GLOBAL_KEYS.
   const move = (delta: number) => {
-    const entries: Selection[] = [...catalog.map((m) => ({ kind: 'msg', id: m.id }) as Selection), { kind: 'dids' }];
+    const entries: Selection[] = [...catalog.map((m) => ({ kind: 'msg' as const, id: m.id })), { kind: 'dids' }];
     const i = entries.findIndex((e) => (e.kind === 'dids' ? selection.kind === 'dids' : selection.kind === 'msg' && selection.id === e.id));
     const next = entries[Math.max(0, Math.min(entries.length - 1, (i < 0 ? 0 : i) + delta))];
     if (next) setSelection(next);

@@ -96,7 +96,7 @@ export function parseTrackResponse(json: unknown): TrackResponse {
     ) {
       return malformed('color is neither null nor {name, unit}');
     }
-    color = { name: json.color.name, unit: json.color.unit as string | null };
+    color = { name: json.color.name, unit: json.color.unit };
   }
 
   if (!Array.isArray(json.segments)) return malformed('segments is not a list');
@@ -140,7 +140,7 @@ export function parseTrackResponse(json: unknown): TrackResponse {
       speedMps,
       headingDeg,
       colorV,
-      gapBeforeMs: raw.gap_before_ms as number | null,
+      gapBeforeMs: raw.gap_before_ms,
     });
   }
 
@@ -153,7 +153,7 @@ export function parseTrackResponse(json: unknown): TrackResponse {
     pointsTotal: json.points_total as number,
     downsampled: json.downsampled,
     pathLengthM: json.path_length_m as number,
-    segmentsTotal: json.segments_total as number,
+    segmentsTotal: json.segments_total,
     excluded: {
       noFix: excluded.no_fix as number,
       staleFix: excluded.stale_fix as number,

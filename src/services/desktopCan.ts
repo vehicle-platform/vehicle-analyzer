@@ -73,8 +73,7 @@ export class DesktopCanAdapter {
   public async connect(request: DesktopOpenRequest, onFrame: (frame: CanFrame) => void): Promise<void> {
     const bridge = await this.bridgeFactory();
     const openedAt = performance.now() / 1000;
-    let unlisten: (() => void) | null = null;
-    unlisten = await bridge.listen(FRAME_EVENT, (e) => {
+    const unlisten = await bridge.listen(FRAME_EVENT, (e) => {
       if (!this.open) return; // never before hal_open confirmed listen-only
       onFrame(frameFromEvent(e.payload, openedAt));
     });
@@ -82,7 +81,7 @@ export class DesktopCanAdapter {
       await bridge.invoke('hal_open', { request });
     } catch (err) {
       unlisten();
-      throw new Error(typeof err === 'string' ? err : (err as Error).message ?? String(err));
+      throw Object.assign(new Error(typeof err === 'string' ? err : (err as Error).message ?? String(err)), { cause: err });
     }
     this.unlisten = unlisten;
     this.open = true;

@@ -42,6 +42,11 @@ jobs:
           npx tsc -p tests/tsconfig.json --noEmit
           npx tsc -p ui-tests/tsconfig.json --noEmit
 
+      # WEB-1: typescript-eslint, type-checked. The warning count is a ratchet
+      # (package.json --max-warnings): lower it as warnings are fixed, never raise it.
+      - name: Lint
+        run: npm run lint
+
       - name: Test
         run: npm test
 

@@ -126,7 +126,7 @@ export function App() {
 
   const stopLiveSources = useCallback(() => {
     virtualBus.stop();
-    webSerialRef.current?.disconnect();
+    void webSerialRef.current?.disconnect();
     webSerialRef.current = null;
     void desktopRef.current?.disconnect();
     desktopRef.current = null;
