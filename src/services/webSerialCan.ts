@@ -111,7 +111,7 @@ export class WebSerialCanAdapter {
 
       this.isReading = true;
       return true;
-    } catch (err: any) {
+    } catch (err: unknown) {
       await this.disconnect();
       throw err;
     }
