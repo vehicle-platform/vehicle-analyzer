@@ -310,7 +310,13 @@ export class VirtualCanBus {
   /** Physical values per message, by signal name (what rt-core / the safety partition would send). */
   private platformValues(msg: DbcMessageDef): Record<string, number> | null {
     const uptime = Math.floor(this.t);
-    const heartbeat = { NODE_MODE: 1, ERROR_COUNT: 0, UPTIME: uptime };
+    // v0.29.0: heartbeat signals carry a per-node prefix (RT_CORE_NODE_MODE, ...); match by suffix.
+    const heartbeat: Record<string, number> = {};
+    for (const sig of msg.signals) {
+      if (sig.name.endsWith('NODE_MODE')) heartbeat[sig.name] = 1;
+      else if (sig.name.endsWith('ERROR_COUNT')) heartbeat[sig.name] = 0;
+      else if (sig.name.endsWith('UPTIME')) heartbeat[sig.name] = uptime;
+    }
     const ekfConverged = this.t > 2;
     const mu = 0.9;
     switch (msg.name) {

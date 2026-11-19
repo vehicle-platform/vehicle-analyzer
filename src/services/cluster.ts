@@ -53,10 +53,10 @@ export const READOUTS: readonly ReadoutSpec[] = [
   { id: 'bsmLeft', label: 'blind spot L', message: 'SafetyWarningStatus', signal: 'BSM_LEFT', kind: 'enum' },
   { id: 'bsmRight', label: 'blind spot R', message: 'SafetyWarningStatus', signal: 'BSM_RIGHT', kind: 'enum' },
   { id: 'immobilizer', label: 'immobilizer', message: 'SafetyWarningStatus', signal: 'IMMOBILIZER_STATE', kind: 'enum' },
-  { id: 'hbRtCore', label: 'rt-core', message: 'HeartbeatRtCore', signal: 'NODE_MODE', kind: 'enum' },
-  { id: 'hbSafety', label: 'safety', message: 'HeartbeatSafety', signal: 'NODE_MODE', kind: 'enum' },
-  { id: 'hbConn', label: 'conn', message: 'HeartbeatConn', signal: 'NODE_MODE', kind: 'enum' },
-  { id: 'hbLinux', label: 'linux', message: 'HeartbeatLinux', signal: 'NODE_MODE', kind: 'enum' },
+  { id: 'hbRtCore', label: 'rt-core', message: 'HeartbeatRtCore', signal: 'RT_CORE_NODE_MODE', kind: 'enum' },
+  { id: 'hbSafety', label: 'safety', message: 'HeartbeatSafety', signal: 'SAFETY_NODE_MODE', kind: 'enum' },
+  { id: 'hbConn', label: 'conn', message: 'HeartbeatConn', signal: 'CONN_NODE_MODE', kind: 'enum' },
+  { id: 'hbLinux', label: 'linux', message: 'HeartbeatLinux', signal: 'LINUX_NODE_MODE', kind: 'enum' },
 ];
 
 export const readoutSpec = (id: string): ReadoutSpec => {

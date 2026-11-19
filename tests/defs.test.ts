@@ -45,7 +45,7 @@ describe('pinned vehicle-defs', () => {
   });
 
   it('loads non-DID sensors and the derived signal facts for coverage', () => {
-    expect(DEFS.sensors).toHaveLength(18);
+    expect(DEFS.sensors).toHaveLength(19);
     const ax = DEFS.sensors.find((s) => s.name === 'imu_accel_x')!;
     expect(ax.phase0).toBe('ble.imuBlock.ax');
     expect(ax.rtCore).toBeNull();
