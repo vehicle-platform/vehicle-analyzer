@@ -86,7 +86,7 @@ export const HealthPanel: React.FC<HealthPanelProps> = ({ store }) => {
   const e2e = store.pipeline.getE2EStats();
   const heartbeats = store.pipeline
     .catalog('platform')
-    .filter((m) => m.signals.some((s) => s.name === 'NODE_MODE'))
+    .filter((m) => m.signals.some((s) => s.name.endsWith('NODE_MODE')))
     .map((m) => ({ msg: m, frame: store.framesByKey.get(frameKey('platform', m.id)) }));
   const buses = [...store.busLoad.entries()].sort(([a], [b]) => a.localeCompare(b));
 
@@ -176,7 +176,8 @@ export const HealthPanel: React.FC<HealthPanelProps> = ({ store }) => {
                 </thead>
                 <tbody>
                   {heartbeats.map(({ msg, frame }) => {
-                    const sig = (n: string) => msg.signals.find((s) => s.name === n);
+                    // v0.29.0: heartbeat signals are prefixed per node (RT_CORE_NODE_MODE, CONN_UPTIME, ...).
+                    const sig = (n: string) => msg.signals.find((s) => s.name.endsWith(n));
                     const v = frame?.decodedSignals ?? {};
                     const ageMs = frame ? (now - frame.timestamp) * 1000 : null;
                     const late = ageMs !== null && msg.cycleTimeMs ? ageMs > 3 * msg.cycleTimeMs : true;
@@ -186,9 +187,9 @@ export const HealthPanel: React.FC<HealthPanelProps> = ({ store }) => {
                           <GutterMark fault={late} />
                         </td>
                         <td className={cn(TD, late && 'text-term-red')}>{msg.name.replace('Heartbeat', '')}</td>
-                        <td className={TD}>{frame ? formatSignal(sig('NODE_MODE'), v.NODE_MODE) : <span className="text-term-red">not seen</span>}</td>
-                        <td className={cn(TD, 'text-right')}>{frame ? formatValue(v.ERROR_COUNT) : <Na />}</td>
-                        <td className={cn(TD, 'text-right')}>{frame ? formatValue(v.UPTIME) : <Na />}</td>
+                        <td className={TD}>{frame ? formatSignal(sig('NODE_MODE'), v[sig('NODE_MODE')?.name ?? '']) : <span className="text-term-red">not seen</span>}</td>
+                        <td className={cn(TD, 'text-right')}>{frame ? formatValue(v[sig('ERROR_COUNT')?.name ?? '']) : <Na />}</td>
+                        <td className={cn(TD, 'text-right')}>{frame ? formatValue(v[sig('UPTIME')?.name ?? '']) : <Na />}</td>
                         <td className={cn(TD, 'text-right', late ? 'text-term-red' : 'text-term-faint')}>{ageMs !== null ? ageMs.toFixed(0) : <Na />}</td>
                       </tr>
                     );
