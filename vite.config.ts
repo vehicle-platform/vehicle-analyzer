@@ -37,5 +37,21 @@ export default defineConfig({
   },
   test: {
     include: ['tests/**/*.test.ts', 'tests/**/*.test.tsx'],
+    coverage: {
+      provider: 'v8',
+      include: ['src/**/*.{ts,tsx}'],
+      exclude: ['src/**/*.d.ts', 'src/main.tsx'],
+      reporter: ['text-summary', 'lcov'],
+      // WEB-2 ratchet: floor = measured, rounded down. Only ever raise these (run
+      // `vitest run --coverage`, bump by hand); the parsers in services/defs have their own floor.
+      thresholds: {
+        statements: 71,
+        branches: 66,
+        functions: 67,
+        lines: 73,
+        'src/services/**': { statements: 88, branches: 82, functions: 91, lines: 91 },
+        'src/defs/**': { statements: 91, branches: 71, functions: 100, lines: 98 },
+      },
+    },
   },
 });
