@@ -7,7 +7,7 @@ import globals from 'globals';
 
 export default tseslint.config(
   {
-    ignores: ['dist/**', 'src-tauri/**', 'external/**', 'node_modules/**', 'test-results/**', '.claude/**', 'playwright-report/**', '**/*.tsbuildinfo'],
+    ignores: ['dist/**', 'src-tauri/**', 'external/**', 'node_modules/**', 'test-results/**', 'coverage/**', '.claude/**', 'playwright-report/**', '**/*.tsbuildinfo'],
   },
   js.configs.recommended,
   ...tseslint.configs.recommendedTypeChecked,
