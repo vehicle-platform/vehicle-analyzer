@@ -29,6 +29,8 @@ npm test         # vitest (tests/), runs against the pinned defs
 npm run build    # Production bundle
 npm run preview  # Preview production build
 npm run tauri dev      # Desktop shell (A6, needs rustup + Tauri 2 system libs); `npm run tauri build` bundles
+# Rust shell (src-tauri/, toolchain pinned by rust-toolchain.toml): before pushing, from src-tauri/
+#   cargo fmt --check && cargo clippy --locked --workspace --all-targets --features vehicle-analyzer-hal/slcan -- -D warnings
 ```
 
 Desktop shell (`src-tauri/`, red zone): runs the same `dist/` build, strict CSP, `core:default` capability only, two native commands only, `hal_open` / `hal_close` (`src-tauri/src/hal_bridge.rs`, frames as `can-frame` events; the shell test pins the command list). The listen-only CAN HAL lives in the workspace crate `src-tauri/hal` (`vehicle-analyzer-hal`): pure policy with refusal tests (SLCAN session: `C`, `S<n>`, `L`, frames only after `L` is confirmed, never `O`; SocketCAN/candleLight: open only when the interface reports `CAN_CTRLMODE_LISTENONLY`, no mode change, no transmit path), real I/O behind the `slcan` (serialport, MPL-2.0, optional) and `socketcan` (Linux) features. UI: source "Native CAN" (`src/services/desktopCan.ts`, `DesktopCanAdapter`) appears only inside the Tauri webview (`isDesktop()`), replaces the browser-only Web Serial entry there, and reports a refusal as the source error; nothing is delivered before `hal_open` resolves. Bundles: `desktop-bundles.yml` (release-published or `workflow_dispatch`; not PR CI) builds `.dmg`, AppImage/`.deb` and `.msi`, unsigned, and attaches them to the release. Next: a first run on a real adapter.

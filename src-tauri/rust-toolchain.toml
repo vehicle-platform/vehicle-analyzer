@@ -1,0 +1,5 @@
+# WEB-4: local and CI use the same channel and components. CI already runs
+# `cargo fmt --check` and `cargo clippy ... -D warnings` (ci.yml, desktop and hal-linux jobs).
+[toolchain]
+channel = "stable"
+components = ["rustfmt", "clippy"]
