@@ -1,0 +1,22 @@
+# Accepted advisories for the weekly audit (QUALITY CI-5). Never blanket-ignore:
+# every entry has a reason and an expiry (ignoreUntil), after which it fails again.
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2026-0543"
+ignoreUntil = 2027-02-21
+reason = "chrono 0.4.45 transitive via Tauri; advisory has no fixed release yet. Re-check on the next Tauri bump."
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2024-0429"
+ignoreUntil = 2027-02-21
+reason = "glib 0.18 is pinned by Tauri 2's gtk3 stack (Linux webview only); the fix (glib 0.20) needs a Tauri/wry release moving off gtk3. The vulnerable code is not reachable from the app."
+
+[[IgnoredVulns]]
+id = "GHSA-wrw7-89jp-8q8g"
+ignoreUntil = 2027-02-21
+reason = "Alias of RUSTSEC-2024-0429 (glib); see above."
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2024-0370"
+ignoreUntil = 2027-02-21
+reason = "proc-macro-error is unmaintained (build-time proc macro, transitive via Tauri); no fixed release exists."
