@@ -1,0 +1,50 @@
+# Weekly dependency audit (QUALITY CI-5). Also runs on PRs that touch a lockfile and on demand.
+# The same pip-audit already gates every PR in ci.yml; this run catches advisories published
+# after the last merge. Scheduled failures notify the repo owner (no issue automation yet).
+name: audit
+
+on:
+  schedule:
+    - cron: "43 5 * * 1"
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "package-lock.json"
+      - "src-tauri/Cargo.lock"
+      - ".github/workflows/audit.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  npm-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 20
+      - name: npm audit (runtime dependencies, high and above)
+        run: npm audit --omit=dev --audit-level=high
+
+  osv-cargo:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - name: Install osv-scanner (pinned, checksum-verified)
+        env:
+          VER: "2.7.1"
+          SHA: "fb7dab19a8bd9bbe5c3189f09d4b7ee1820c9553a23bac202648a56efd2f6ee8"
+        run: |
+          set -euo pipefail
+          curl -sSfL -o "$RUNNER_TEMP/osv-scanner" \
+            "https://github.com/google/osv-scanner/releases/download/v${VER}/osv-scanner_linux_amd64"
+          echo "${SHA}  $RUNNER_TEMP/osv-scanner" | sha256sum -c -
+          chmod +x "$RUNNER_TEMP/osv-scanner"
+      - name: osv-scanner on the Rust lockfile
+        run: |
+          "$RUNNER_TEMP/osv-scanner" scan source --lockfile src-tauri/Cargo.lock
