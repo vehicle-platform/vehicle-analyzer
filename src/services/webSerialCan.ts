@@ -8,21 +8,34 @@ export type SlcanEvent = { kind: 'ok' } | { kind: 'error' } | { kind: 'line'; te
  * `\a` (BELL, error); received frames and text replies (`V1013`) are text terminated by `\r`.
  * Stray `\n` (some adapters send CR LF) is ignored. Chunks may split anywhere.
  */
+/** Longest legal receive line is about 30 characters; text replies are shorter than this. */
+const MAX_SLCAN_LINE = 256;
+
 export class SlcanScanner {
   private pending = '';
+  /** True while an over-long unterminated line is being skipped (until the next CR or BELL). */
+  private overflow = false;
 
   public push(chunk: string): SlcanEvent[] {
     const events: SlcanEvent[] = [];
     for (const ch of chunk) {
       if (ch === '\x07') {
         this.pending = '';
+        this.overflow = false;
         events.push({ kind: 'error' });
       } else if (ch === '\r') {
         const text = this.pending.trim();
+        const skipped = this.overflow;
         this.pending = '';
-        events.push(text ? { kind: 'line', text } : { kind: 'ok' });
-      } else {
+        this.overflow = false;
+        if (!skipped) events.push(text ? { kind: 'line', text } : { kind: 'ok' });
+      } else if (!this.overflow) {
         this.pending += ch;
+        if (this.pending.length > MAX_SLCAN_LINE) {
+          // An adapter that never terminates a line must not grow memory without bound.
+          this.pending = '';
+          this.overflow = true;
+        }
       }
     }
     return events;
@@ -227,6 +240,7 @@ export function parseSlcanLine(line: string, bus: string): CanFrame | null {
   const dataHex = line.substring(2 + idLen, 2 + idLen + dlc * 2);
   if (dataHex.length !== dlc * 2 || (dlc > 0 && !/^[0-9A-Fa-f]+$/.test(dataHex))) return null;
   if (isStd && id > 0x7ff) return null;
+  if (isExt && id > 0x1fffffff) return null; // a CAN identifier has 29 bits
 
   const data: number[] = [];
   for (let i = 0; i < dataHex.length; i += 2) data.push(parseInt(dataHex.substring(i, i + 2), 16));

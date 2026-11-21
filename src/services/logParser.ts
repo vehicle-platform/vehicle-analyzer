@@ -89,7 +89,8 @@ export function parseCanCsv(csvText: string): CanFrame[] {
       }
 
       if (!Number.isFinite(timestamp) || !Number.isFinite(id) || dlc > MAX_DLC) continue;
-      const isExtended = id > 0x7ff;
+      // An extended identifier below 0x800 is exported with eight hex digits: keep the flag.
+      const isExtended = id > 0x7ff || /^(0x)?[0-9a-f]{8}$/i.test(idHex);
 
       frames.push({
         id,
