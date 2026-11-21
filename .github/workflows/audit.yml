@@ -11,6 +11,7 @@ on:
     paths:
       - "package-lock.json"
       - "src-tauri/Cargo.lock"
+      - "osv-scanner.toml"
       - ".github/workflows/audit.yml"
 
 permissions:
@@ -47,4 +48,4 @@ jobs:
           chmod +x "$RUNNER_TEMP/osv-scanner"
       - name: osv-scanner on the Rust lockfile
         run: |
-          "$RUNNER_TEMP/osv-scanner" scan source --lockfile src-tauri/Cargo.lock
+          "$RUNNER_TEMP/osv-scanner" scan source --config osv-scanner.toml --lockfile src-tauri/Cargo.lock
