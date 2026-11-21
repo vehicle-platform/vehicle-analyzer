@@ -11,7 +11,8 @@
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:ui": "playwright test",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "mutation": "stryker run"
   },
   "dependencies": {
     "@fontsource/iosevka": "^5.3.0",
@@ -26,6 +27,8 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@playwright/test": "1.64.1",
+    "@stryker-mutator/core": "^10.1.1",
+    "@stryker-mutator/vitest-runner": "^10.1.1",
     "@tauri-apps/cli": "2.12.4",
     "@testing-library/react": "16.3.3",
     "@types/node": "^22.10.2",
