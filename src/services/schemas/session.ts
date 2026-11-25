@@ -80,7 +80,7 @@ export function parseSessionListResult(json: unknown): SessionListResult {
   const list = Array.isArray(json) ? json : isRecord(json) && Array.isArray(json.sessions) ? json.sessions : null;
   if (list === null) return { rows: [], rejected: 1 };
   const { items, rejected } = parseItems(SessionRowSchema, list);
-  return { rows: items as SessionRow[], rejected };
+  return { rows: items, rejected };
 }
 
 /** Rows only; see `parseSessionListResult` for the drop count. */
