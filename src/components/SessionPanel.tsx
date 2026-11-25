@@ -70,9 +70,9 @@ export const SessionPanel: React.FC<SessionPanelProps> = ({ token, onTokenChange
 
   const refresh = () =>
     run(async () => {
-      const rows = await client.listSessions();
+      const { rows, rejected } = await client.listSessionsChecked();
       setSessions(rows);
-      setStatus(`${rows.length} session${rows.length === 1 ? '' : 's'} on the server.`);
+      setStatus(`${rows.length} session${rows.length === 1 ? '' : 's'} on the server.${rejected > 0 ? ` ${rejected} malformed entr${rejected === 1 ? 'y' : 'ies'} dropped.` : ''}`);
     });
 
   const select = (id: string) => {
@@ -95,10 +95,11 @@ export const SessionPanel: React.FC<SessionPanelProps> = ({ token, onTokenChange
       }
       onLoad(res.series, mode, selected);
       const pts = res.series.reduce((n, s) => n + s.v.length, 0);
+      const dropped = res.rejected > 0 ? ` ${res.rejected} malformed series dropped.` : '';
       setStatus(
-        mode === 'replay'
+        (mode === 'replay'
           ? `Opened ${selected}: ${res.series.length} series, ${pts.toLocaleString()} samples, ready to replay (space).`
-          : `Loaded ${selected}: ${res.series.length} series, ${pts.toLocaleString()} samples, all at once.`
+          : `Loaded ${selected}: ${res.series.length} series, ${pts.toLocaleString()} samples, all at once.`) + dropped
       );
     });
   };

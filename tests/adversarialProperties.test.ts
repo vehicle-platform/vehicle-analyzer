@@ -284,10 +284,8 @@ describe('CSV escaping (property tests)', () => {
     expect(parseCanCsv(exportToCsv([f]))[0]).toMatchObject({ id: 0x12, isExtended: true });
   });
 
-  // Known limitation (documented, not fixed): parseCanCsv splits the file on newlines before it
-  // honours quotes, so a Name or signal text holding a line break loses its frame on re-import.
-  // Names come from DBC/defs and never contain one today; a record-aware reader would fix it.
-  it.fails('a quoted line break inside a cell survives the CSV round trip', () => {
+  // parseCanCsv reads RFC 4180 records (parseCsv), so a quoted line break stays inside its cell.
+  it('a quoted line break inside a cell survives the CSV round trip', () => {
     const f: CanFrame = {
       id: 0x110, idHex: '0x110', bus: 'vehicle', dlc: 1, data: [1], timestamp: 1, deltaMs: 0,
       isExtended: false, periodMs: 0, frequencyHz: 0, count: 1, name: 'a\nb',

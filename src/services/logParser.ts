@@ -1,5 +1,5 @@
 import { CanFrame } from '../types/can';
-import { splitCsvLine } from './csv';
+import { parseCsv } from './csv';
 import { ascChannelToBus } from './exportService';
 
 /** Largest DLC accepted from an imported log (CAN FD maximum). */
@@ -66,14 +66,11 @@ export function parseVectorAsc(ascText: string): CanFrame[] {
  * Header: Timestamp,DeltaMs,Bus,CAN_ID,Name,DLC,DataHex,DecodedSignals
  */
 export function parseCanCsv(csvText: string): CanFrame[] {
-  const lines = csvText.split('\n');
+  const records = parseCsv(csvText);
   const frames: CanFrame[] = [];
 
-  for (let i = 1; i < lines.length; i++) {
-    const line = lines[i].trim();
-    if (!line) continue;
-
-    const parts = splitCsvLine(line);
+  for (let i = 1; i < records.length; i++) {
+    const parts = records[i];
     if (parts.length >= 7) {
       const timestamp = parseFloat(parts[0]);
       const bus = parts[2] || 'can0';

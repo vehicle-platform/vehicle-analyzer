@@ -46,3 +46,46 @@ export function csvQuoted(value: string): string {
   const safe = FORMULA_START.test(value) ? `'${value}` : value;
   return `"${safe.replace(/"/g, '""')}"`;
 }
+
+/**
+ * RFC 4180 reader: records end at LF, CRLF or CR outside quotes, so a quoted cell may hold line
+ * breaks, commas and doubled quotes. Fully empty lines are skipped. Never throws; an unterminated
+ * quote runs to the end of the text.
+ */
+export function parseCsv(text: string): string[][] {
+  const records: string[][] = [];
+  let row: string[] = [];
+  let cur = '';
+  let quoted = false;
+  let touched = false;
+  const endRecord = () => {
+    row.push(cur);
+    if (row.length > 1 || row[0] !== '' || touched) records.push(row);
+    row = [];
+    cur = '';
+    touched = false;
+  };
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (quoted) {
+      if (ch === '"') {
+        if (text[i + 1] === '"') {
+          cur += '"';
+          i++;
+        } else quoted = false;
+      } else cur += ch;
+    } else if (ch === '"') {
+      quoted = true;
+      touched = true;
+    } else if (ch === ',') {
+      row.push(cur);
+      cur = '';
+      touched = true;
+    } else if (ch === '\n' || ch === '\r') {
+      if (ch === '\r' && text[i + 1] === '\n') i++;
+      endRecord();
+    } else cur += ch;
+  }
+  if (cur !== '' || row.length > 0 || touched) endRecord();
+  return records;
+}
