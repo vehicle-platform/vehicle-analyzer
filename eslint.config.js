@@ -49,6 +49,11 @@ export default tseslint.config(
       'react-hooks/static-components': 'warn',
     },
   },
+  // Size ratchet: no source file over 600 lines (sessionClient and UdsPanel were split for it).
+  {
+    files: ['src/**/*.{ts,tsx}'],
+    rules: { 'max-lines': ['error', { max: 600, skipBlankLines: true, skipComments: true }] },
+  },
   // Tests build loose fetch/WebSocket/worker mocks and read untyped fixtures; the
   // any-propagation and async-without-await rules are noise there, not defects.
   {

@@ -197,3 +197,30 @@ describe('arbitrary JSON', () => {
     );
   });
 });
+
+describe('split modules keep the public exports', () => {
+  it('sessionClient re-exports the http layer, parsers and key mapping', async () => {
+    const client = await import('@/services/sessionClient');
+    const http = await import('@/services/restHttp');
+    const keys = await import('@/services/seriesKeys');
+    expect(client.buildRequest).toBe(http.buildRequest);
+    expect(client.getJson).toBe(http.getJson);
+    expect(client.describeHttpError).toBe(http.describeHttpError);
+    expect(client.mapSeriesKey).toBe(keys.mapSeriesKey);
+    expect(client.BRINGUP_GATES).toEqual(['B0', 'V0', 'V1']);
+    for (const name of ['parseSeriesResponse', 'parseSessionList', 'parseRideSummary', 'parseRidesResponse', 'parseBringupResult', 'parseReport', 'RestSchemaError'] as const) {
+      expect(typeof client[name]).toBe('function');
+    }
+  });
+  it('trackClient re-exports parseTrackResponse', async () => {
+    const t = await import('@/services/trackClient');
+    expect(t.parseTrackResponse).toBe(parseTrackResponse);
+  });
+  it('the http layer keeps the token out of the URL', async () => {
+    const { buildRequest } = await import('@/services/restHttp');
+    const r = buildRequest(' http://h/// ', 'SECRET', '/sessions', { a: 1, b: '', c: undefined });
+    expect(r.url).toBe('http://h/sessions?a=1');
+    expect(r.url).not.toContain('SECRET');
+    expect(r.headers.Authorization).toBe('Bearer SECRET');
+  });
+});
