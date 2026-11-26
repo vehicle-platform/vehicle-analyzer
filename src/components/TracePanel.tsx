@@ -64,6 +64,25 @@ const E2EText: React.FC<{ status?: E2EStatus }> = ({ status }) => {
   return <FaultCell title={FAULT_REASON[status]}>{status}</FaultCell>;
 };
 
+const SortHead: React.FC<{
+  field: SortField;
+  label: string;
+  right?: boolean;
+  sortField: SortField;
+  sortAsc: boolean;
+  onSort: (field: SortField) => void;
+}> = ({ field, label, right, sortField, sortAsc, onSort }) => {
+  const active = sortField === field;
+  return (
+    <th aria-sort={active ? (sortAsc ? 'ascending' : 'descending') : 'none'} className={cn(TH, right && 'text-right')}>
+      <button type="button" onClick={() => onSort(field)} className={cn('hover:text-term-fg', active && 'text-term-fg')}>
+        {label}
+        {active && <span className="text-term-amber"> {sortAsc ? '↓' : '↑'}</span>}
+      </button>
+    </th>
+  );
+};
+
 export const TracePanel: React.FC<TracePanelProps> = ({ store, triggerArmed, onArmTrigger }) => {
   const [mode, setMode] = useState<TraceMode>('overwrite');
   const [filterQuery, setFilterQuery] = useState('');
@@ -234,21 +253,6 @@ export const TracePanel: React.FC<TracePanelProps> = ({ store, triggerArmed, onA
     });
   };
 
-  const SortHead: React.FC<{ field: SortField; label: string; right?: boolean }> = ({ field, label, right }) => {
-    const active = sortField === field;
-    return (
-      <th
-        aria-sort={active ? (sortAsc ? 'ascending' : 'descending') : 'none'}
-        className={cn(TH, right && 'text-right')}
-      >
-        <button type="button" onClick={() => handleSort(field)} className={cn('hover:text-term-fg', active && 'text-term-fg')}>
-          {label}
-          {active && <span className="text-term-amber"> {sortAsc ? '↓' : '↑'}</span>}
-        </button>
-      </th>
-    );
-  };
-
   const groupByBus = sortField === 'id';
 
   return (
@@ -358,12 +362,12 @@ export const TracePanel: React.FC<TracePanelProps> = ({ store, triggerArmed, onA
               <tr>
                 <th className={TH} aria-label="Marker" />
                 <th className={TH}>bus</th>
-                <SortHead field="id" label="id" />
-                <SortHead field="name" label="name" />
+                <SortHead field="id" label="id" sortField={sortField} sortAsc={sortAsc} onSort={handleSort} />
+                <SortHead field="name" label="name" sortField={sortField} sortAsc={sortAsc} onSort={handleSort} />
                 <th className={cn(TH, 'text-right')}>dlc</th>
-                <SortHead field="period" label="period" right />
-                <SortHead field="freq" label="Hz" right />
-                <SortHead field="count" label="count" right />
+                <SortHead field="period" label="period" right sortField={sortField} sortAsc={sortAsc} onSort={handleSort} />
+                <SortHead field="freq" label="Hz" right sortField={sortField} sortAsc={sortAsc} onSort={handleSort} />
+                <SortHead field="count" label="count" right sortField={sortField} sortAsc={sortAsc} onSort={handleSort} />
                 <th className={TH}>e2e</th>
                 <th className={TH}>data</th>
                 <th className={TH}>decoded</th>
