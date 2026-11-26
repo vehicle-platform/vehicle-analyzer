@@ -10,10 +10,10 @@ export const SNIFFER_HISTORY_LENGTH = 16;
  */
 export function updateSnifferRecord(existing: ByteSnifferRecord | undefined, frame: CanFrame): ByteSnifferRecord {
   const byteStatuses: ByteActivityStatus[] = [];
-  const changeCounts = existing ? [...existing.changeCounts] : Array(8).fill(0);
-  const notchedBytes = existing ? [...existing.notchedBytes] : Array(8).fill(false);
-  const lastDirections = existing ? [...existing.lastDirections] : Array(8).fill(0);
-  const bitFlips = existing ? [...existing.bitFlips] : Array(64).fill(0);
+  const changeCounts = existing ? [...existing.changeCounts] : new Array<number>(8).fill(0);
+  const notchedBytes = existing ? [...existing.notchedBytes] : new Array<boolean>(8).fill(false);
+  const lastDirections = existing ? [...existing.lastDirections] : new Array<number>(8).fill(0);
+  const bitFlips = existing ? [...existing.bitFlips] : new Array<number>(64).fill(0);
 
   for (let i = 0; i < 8; i++) {
     const cur = frame.data[i] ?? 0;

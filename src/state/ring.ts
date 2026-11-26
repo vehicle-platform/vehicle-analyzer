@@ -99,7 +99,7 @@ export class RingBuffer<T> {
   private count = 0;
 
   constructor(public readonly capacity: number) {
-    this.items = new Array(capacity);
+    this.items = new Array<T | undefined>(capacity);
   }
 
   get length() {
@@ -118,7 +118,7 @@ export class RingBuffer<T> {
   }
 
   public toArray(): T[] {
-    const out: T[] = new Array(this.count);
+    const out: T[] = new Array<T>(this.count);
     for (let i = 0; i < this.count; i++) out[i] = this.at(i);
     return out;
   }
