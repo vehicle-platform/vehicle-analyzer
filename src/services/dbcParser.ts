@@ -221,7 +221,7 @@ export function encodeFrameSignals(
   values: Record<string, number>,
   opts: { raw?: boolean } = {}
 ): number[] {
-  const data = new Array(messageDef.dlc).fill(0);
+  const data = new Array<number>(messageDef.dlc).fill(0);
   for (const sig of messageDef.signals) {
     const v = values[sig.name];
     if (v === undefined) continue;

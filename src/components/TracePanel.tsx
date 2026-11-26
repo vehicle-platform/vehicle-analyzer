@@ -64,6 +64,25 @@ const E2EText: React.FC<{ status?: E2EStatus }> = ({ status }) => {
   return <FaultCell title={FAULT_REASON[status]}>{status}</FaultCell>;
 };
 
+const SortHead: React.FC<{
+  field: SortField;
+  label: string;
+  right?: boolean;
+  sortField: SortField;
+  sortAsc: boolean;
+  onSort: (field: SortField) => void;
+}> = ({ field, label, right, sortField, sortAsc, onSort }) => {
+  const active = sortField === field;
+  return (
+    <th aria-sort={active ? (sortAsc ? 'ascending' : 'descending') : 'none'} className={cn(TH, right && 'text-right')}>
+      <button type="button" onClick={() => onSort(field)} className={cn('hover:text-term-fg', active && 'text-term-fg')}>
+        {label}
+        {active && <span className="text-term-amber"> {sortAsc ? '↓' : '↑'}</span>}
+      </button>
+    </th>
+  );
+};
+
 export const TracePanel: React.FC<TracePanelProps> = ({ store, triggerArmed, onArmTrigger }) => {
   const [mode, setMode] = useState<TraceMode>('overwrite');
   const [filterQuery, setFilterQuery] = useState('');
@@ -126,7 +145,7 @@ export const TracePanel: React.FC<TracePanelProps> = ({ store, triggerArmed, onA
 
   // ---- scroll log virtualization
   const scrollRef = useRef<HTMLDivElement | null>(null);
-  const [scrollTop, setScrollTop] = useState(0);
+  const [userScrollTop, setUserScrollTop] = useState(0);
   const [viewportH, setViewportH] = useState(600);
   const [follow, setFollow] = useState(true);
   const log = store.log;
@@ -138,22 +157,28 @@ export const TracePanel: React.FC<TracePanelProps> = ({ store, triggerArmed, onA
   })() : null;
   const rowCount = filtered ? filtered.length : log.length;
   const rowAt = (r: number) => log.at(filtered ? filtered[r] : r);
+  const scrollTop = follow ? Math.max(0, rowCount * ROW_PX - viewportH) : userScrollTop;
   const first = Math.max(0, Math.floor(scrollTop / ROW_PX) - OVERSCAN);
   const last = Math.min(rowCount, Math.ceil((scrollTop + viewportH) / ROW_PX) + OVERSCAN);
 
+  useEffect(() => {
+    if (mode !== 'scroll' || typeof ResizeObserver === 'undefined') return;
+    const el = scrollRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver(() => setViewportH(el.clientHeight));
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [mode]);
+
   useLayoutEffect(() => {
     const el = scrollRef.current;
-    if (!el || mode !== 'scroll') return;
-    setViewportH(el.clientHeight);
-    if (follow) {
-      el.scrollTop = el.scrollHeight;
-      setScrollTop(el.scrollTop);
-    }
-  });
+    if (!el || mode !== 'scroll' || !follow) return;
+    el.scrollTop = el.scrollHeight;
+  }, [mode, follow, rowCount]);
 
   const onScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const el = e.currentTarget;
-    setScrollTop(el.scrollTop);
+    setUserScrollTop(el.scrollTop);
     const atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - ROW_PX * 2;
     if (follow !== atBottom) setFollow(atBottom);
   };
@@ -232,21 +257,6 @@ export const TracePanel: React.FC<TracePanelProps> = ({ store, triggerArmed, onA
       const sig = msg?.signals.find((s) => s.name === k);
       return { k, text: formatSignal(sig, v), unit: sig?.values ? '' : sig?.unit ?? '' };
     });
-  };
-
-  const SortHead: React.FC<{ field: SortField; label: string; right?: boolean }> = ({ field, label, right }) => {
-    const active = sortField === field;
-    return (
-      <th
-        aria-sort={active ? (sortAsc ? 'ascending' : 'descending') : 'none'}
-        className={cn(TH, right && 'text-right')}
-      >
-        <button type="button" onClick={() => handleSort(field)} className={cn('hover:text-term-fg', active && 'text-term-fg')}>
-          {label}
-          {active && <span className="text-term-amber"> {sortAsc ? '↓' : '↑'}</span>}
-        </button>
-      </th>
-    );
   };
 
   const groupByBus = sortField === 'id';
@@ -358,12 +368,12 @@ export const TracePanel: React.FC<TracePanelProps> = ({ store, triggerArmed, onA
               <tr>
                 <th className={TH} aria-label="Marker" />
                 <th className={TH}>bus</th>
-                <SortHead field="id" label="id" />
-                <SortHead field="name" label="name" />
+                <SortHead field="id" label="id" sortField={sortField} sortAsc={sortAsc} onSort={handleSort} />
+                <SortHead field="name" label="name" sortField={sortField} sortAsc={sortAsc} onSort={handleSort} />
                 <th className={cn(TH, 'text-right')}>dlc</th>
-                <SortHead field="period" label="period" right />
-                <SortHead field="freq" label="Hz" right />
-                <SortHead field="count" label="count" right />
+                <SortHead field="period" label="period" right sortField={sortField} sortAsc={sortAsc} onSort={handleSort} />
+                <SortHead field="freq" label="Hz" right sortField={sortField} sortAsc={sortAsc} onSort={handleSort} />
+                <SortHead field="count" label="count" right sortField={sortField} sortAsc={sortAsc} onSort={handleSort} />
                 <th className={TH}>e2e</th>
                 <th className={TH}>data</th>
                 <th className={TH}>decoded</th>

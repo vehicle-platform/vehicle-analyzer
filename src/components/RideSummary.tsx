@@ -234,31 +234,31 @@ const SignalList: React.FC<{ summary: RideSummaryData }> = ({ summary }) => {
  * state to every card that shows the summary (ride summary, health windows): one request, not two.
  */
 export function useRideSummary(token: string, serverUrl: string, sessionId: string | null): { state: SummaryState; retry: () => void } {
-  const [state, setState] = useState<SummaryState>({ kind: 'idle' });
   const [nonce, setNonce] = useState(0);
+  const [result, setResult] = useState<{ key: string; state: SummaryState } | null>(null);
   const connection = useRef({ serverUrl, token });
-  connection.current = { serverUrl, token };
+  useEffect(() => {
+    connection.current = { serverUrl, token };
+  }, [serverUrl, token]);
   const hasServer = serverUrl.trim() !== '';
+  const key = `${sessionId ?? ''}|${nonce}`;
+  const state: SummaryState = !sessionId || !hasServer ? { kind: 'idle' } : result && result.key === key ? result.state : { kind: 'loading' };
 
   useEffect(() => {
-    if (!sessionId || !hasServer) {
-      setState({ kind: 'idle' });
-      return;
-    }
+    if (!sessionId || !hasServer) return;
     let cancelled = false;
-    setState({ kind: 'loading' });
     fetchRideSummary({ serverUrl: connection.current.serverUrl, token: connection.current.token }, sessionId)
       .then((summary) => {
-        if (!cancelled) setState({ kind: 'loaded', summary });
+        if (!cancelled) setResult({ key, state: { kind: 'loaded', summary } });
       })
       .catch((error: unknown) => {
         if (cancelled) return;
-        setState(error instanceof NoRideSummaryError ? { kind: 'none' } : { kind: 'error', message: error instanceof Error ? error.message : 'Request failed.' });
+        setResult({ key, state: error instanceof NoRideSummaryError ? { kind: 'none' } : { kind: 'error', message: error instanceof Error ? error.message : 'Request failed.' } });
       });
     return () => {
       cancelled = true;
     };
-  }, [sessionId, hasServer, nonce]);
+  }, [sessionId, hasServer, key]);
 
   return { state, retry: () => setNonce((value) => value + 1) };
 }

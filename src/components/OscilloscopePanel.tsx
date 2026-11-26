@@ -15,7 +15,7 @@ import {
 import { formatValue } from '../services/format';
 import { Segmented, TermButton, TermInput, Toolbar, cn } from '../ui/primitives';
 import { useHotkeys } from '../ui/keys';
-import { themeColor, useActiveTheme } from '../ui/theme';
+import { themeColor, useActiveTheme, type Theme } from '../ui/theme';
 import { TD, TH, documentTheme, scopePalette, traceSwatch } from '../ui/panel-parts';
 
 interface OscilloscopePanelProps {
@@ -124,6 +124,34 @@ const ChannelLabel: React.FC<{ label: string }> = ({ label }) => {
   );
 };
 
+const ChannelSelect: React.FC<{
+  groups: [string, ChannelInfo[]][];
+  value: string;
+  onChange: (v: string) => void;
+  label: string;
+}> = ({ groups, value, onChange, label }) => (
+  <select aria-label={label} value={value} onChange={(e) => onChange(e.target.value)} className="term-select max-w-[280px]">
+    {groups.map(([g, list]) => (
+      <optgroup key={g} label={g}>
+        {list.map((c) => (
+          <option key={c.key} value={c.key}>
+            {c.label}
+          </option>
+        ))}
+      </optgroup>
+    ))}
+  </select>
+);
+
+const Swatch: React.FC<{ slot: number; dashed?: boolean; theme: Theme }> = ({ slot, dashed, theme }) => {
+  const sw = traceSwatch(theme, slot);
+  return (
+    <span aria-hidden="true" className={sw.className} style={sw.style}>
+      {dashed ? '┄' : '●'}
+    </span>
+  );
+};
+
 export const OscilloscopePanel: React.FC<OscilloscopePanelProps> = ({ store }) => {
   const theme = useActiveTheme();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -180,7 +208,9 @@ export const OscilloscopePanel: React.FC<OscilloscopePanelProps> = ({ store }) =
 
   // The canvas draws on its own animation frames, only when data, settings, size or theme changed.
   const drawConfig = useRef({ buildTraces, timeWindowSec, cursorA, cursorB, latestOf });
-  drawConfig.current = { buildTraces, timeWindowSec, cursorA, cursorB, latestOf };
+  useEffect(() => {
+    drawConfig.current = { buildTraces, timeWindowSec, cursorA, cursorB, latestOf };
+  });
   const settingsVersion = useRef(0);
   useEffect(() => {
     settingsVersion.current++;
@@ -359,29 +389,6 @@ export const OscilloscopePanel: React.FC<OscilloscopePanelProps> = ({ store }) =
     return [...g.entries()];
   }, [channels]);
 
-  const ChannelSelect: React.FC<{ value: string; onChange: (v: string) => void; label: string }> = ({ value, onChange, label }) => (
-    <select aria-label={label} value={value} onChange={(e) => onChange(e.target.value)} className="term-select max-w-[280px]">
-      {groups.map(([g, list]) => (
-        <optgroup key={g} label={g}>
-          {list.map((c) => (
-            <option key={c.key} value={c.key}>
-              {c.label}
-            </option>
-          ))}
-        </optgroup>
-      ))}
-    </select>
-  );
-
-  const Swatch: React.FC<{ slot: number; dashed?: boolean }> = ({ slot, dashed }) => {
-    const sw = traceSwatch(theme, slot);
-    return (
-      <span aria-hidden="true" className={sw.className} style={sw.style}>
-        {dashed ? '┄' : '●'}
-      </span>
-    );
-  };
-
   const showReadout = cursorA !== null || cursorB !== null;
 
   return (
@@ -420,7 +427,7 @@ export const OscilloscopePanel: React.FC<OscilloscopePanelProps> = ({ store }) =
           const isMath = t.key.startsWith('math_');
           return (
             <span key={t.key} className="inline-flex items-center gap-[1ch] whitespace-nowrap">
-              <Swatch slot={t.slot} dashed={t.dashed} />
+              <Swatch slot={t.slot} dashed={t.dashed} theme={theme} />
               <ChannelLabel label={t.label} />
               <span className="text-term-hi">{last === undefined ? <span className="text-term-faint">–</span> : formatValue(last)}</span>
               {t.unit && <span className="text-term-faint">{t.unit}</span>}
@@ -439,7 +446,7 @@ export const OscilloscopePanel: React.FC<OscilloscopePanelProps> = ({ store }) =
           );
         })}
         <span className="inline-flex items-center gap-[6px]">
-          <ChannelSelect label="Channel to add" value={picker || channels[0]?.key || ''} onChange={setPicker} />
+          <ChannelSelect groups={groups} label="Channel to add" value={picker || channels[0]?.key || ''} onChange={setPicker} />
           <TermButton hotkey="A" onClick={addPicked} title="Add the selected channel">
             add
           </TermButton>
@@ -462,11 +469,11 @@ export const OscilloscopePanel: React.FC<OscilloscopePanelProps> = ({ store }) =
             ))}
           </select>
           <span className="text-term-dim">A</span>
-          <ChannelSelect label="Input A" value={draft.a} onChange={(a) => setDraft({ ...draft, a })} />
+          <ChannelSelect groups={groups} label="Input A" value={draft.a} onChange={(a) => setDraft({ ...draft, a })} />
           {draft.op !== 'derivative' && (
             <>
               <span className="text-term-dim">B</span>
-              <ChannelSelect label="Input B" value={draft.b} onChange={(b) => setDraft({ ...draft, b })} />
+              <ChannelSelect groups={groups} label="Input B" value={draft.b} onChange={(b) => setDraft({ ...draft, b })} />
             </>
           )}
           <span className="text-term-dim">× scale</span>
@@ -509,7 +516,7 @@ export const OscilloscopePanel: React.FC<OscilloscopePanelProps> = ({ store }) =
                 return (
                   <tr key={t.key}>
                     <td className={cn(TD, 'max-w-[260px] overflow-hidden text-ellipsis')} title={t.label}>
-                      <Swatch slot={t.slot} dashed={t.dashed} /> <ChannelLabel label={t.label} />
+                      <Swatch slot={t.slot} dashed={t.dashed} theme={theme} /> <ChannelLabel label={t.label} />
                     </td>
                     <td className={cn(TD, 'text-right')}>{cell(va)}</td>
                     <td className={cn(TD, 'text-right')}>{cell(vb)}</td>

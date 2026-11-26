@@ -173,7 +173,7 @@ export class CaptureStore {
   }
 
   public clearNotches() {
-    this.sniffer.forEach((rec, key) => this.sniffer.set(key, { ...rec, notchedBytes: Array(8).fill(false) }));
+    this.sniffer.forEach((rec, key) => this.sniffer.set(key, { ...rec, notchedBytes: new Array<boolean>(8).fill(false) }));
     this.notify();
   }
 
