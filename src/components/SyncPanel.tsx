@@ -66,8 +66,13 @@ export const SyncPanel: React.FC<SyncPanelProps> = ({ store, source, onLogLoaded
   }, [importState]);
 
   // Finishing would switch back to log replay, so a source chosen meanwhile cancels the import.
+  // The status and the callback are dependencies, but only a source change cancels: the effect
+  // also runs when the import starts, while the source still is the one it started under.
+  const previousSource = useRef(source);
   useEffect(() => {
-    if (source !== 'local_file' && importState.status === 'running') cancelImport();
+    const changed = previousSource.current !== source;
+    previousSource.current = source;
+    if (changed && source !== 'local_file' && importState.status === 'running') cancelImport();
   }, [source, importState.status, cancelImport]);
 
   const handleDbcUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
