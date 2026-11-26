@@ -175,7 +175,9 @@ export const ComparePanel: React.FC<ComparePanelProps> = ({ token, onTokenChange
 
   // Latest connection settings: editing the URL/token inputs must not fetch the tracks by itself.
   const connection = useRef({ serverUrl, token });
-  connection.current = { serverUrl, token };
+  useEffect(() => {
+    connection.current = { serverUrl, token };
+  }, [serverUrl, token]);
 
   // Fetches on show, on a session change while shown and on Compare. A response that is no
   // longer the latest request is dropped (the cleanup flags it).

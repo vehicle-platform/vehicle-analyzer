@@ -64,7 +64,9 @@ export const TrackPanel: React.FC<TrackPanelProps> = ({
   const suppressClick = useRef(false);
   // Editing the URL/token inputs must not fetch: the effects read the latest values from here.
   const connection = useRef({ serverUrl, token });
-  connection.current = { serverUrl, token };
+  useEffect(() => {
+    connection.current = { serverUrl, token };
+  }, [serverUrl, token]);
   // The view is fitted when a track first appears for a session and on Fit, never on a refetch or resize.
   const fitPending = useRef(true);
   const lastSize = useRef<ElementSize | null>(null);

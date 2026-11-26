@@ -39,7 +39,9 @@ export const BringupCheck: React.FC<BringupCheckProps> = ({ token, serverUrl, se
   const [state, setState] = useState<BringupState>({ kind: 'idle' });
   const [nonce, setNonce] = useState(0);
   const connection = useRef({ serverUrl, token });
-  connection.current = { serverUrl, token };
+  useEffect(() => {
+    connection.current = { serverUrl, token };
+  }, [serverUrl, token]);
   const hasServer = serverUrl.trim() !== '';
 
   useEffect(() => {

@@ -180,7 +180,9 @@ export const OscilloscopePanel: React.FC<OscilloscopePanelProps> = ({ store }) =
 
   // The canvas draws on its own animation frames, only when data, settings, size or theme changed.
   const drawConfig = useRef({ buildTraces, timeWindowSec, cursorA, cursorB, latestOf });
-  drawConfig.current = { buildTraces, timeWindowSec, cursorA, cursorB, latestOf };
+  useEffect(() => {
+    drawConfig.current = { buildTraces, timeWindowSec, cursorA, cursorB, latestOf };
+  });
   const settingsVersion = useRef(0);
   useEffect(() => {
     settingsVersion.current++;

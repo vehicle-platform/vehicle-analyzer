@@ -237,7 +237,9 @@ export function useRideSummary(token: string, serverUrl: string, sessionId: stri
   const [state, setState] = useState<SummaryState>({ kind: 'idle' });
   const [nonce, setNonce] = useState(0);
   const connection = useRef({ serverUrl, token });
-  connection.current = { serverUrl, token };
+  useEffect(() => {
+    connection.current = { serverUrl, token };
+  }, [serverUrl, token]);
   const hasServer = serverUrl.trim() !== '';
 
   useEffect(() => {

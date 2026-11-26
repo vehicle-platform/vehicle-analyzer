@@ -38,7 +38,9 @@ function normalise(key: string): string {
  */
 export function useHotkeys(bindings: KeyBindings, enabled = true): void {
   const ref = useRef(bindings);
-  ref.current = bindings;
+  useEffect(() => {
+    ref.current = bindings;
+  });
 
   useEffect(() => {
     if (!enabled) return;
