@@ -145,7 +145,7 @@ export const TracePanel: React.FC<TracePanelProps> = ({ store, triggerArmed, onA
 
   // ---- scroll log virtualization
   const scrollRef = useRef<HTMLDivElement | null>(null);
-  const [scrollTop, setScrollTop] = useState(0);
+  const [userScrollTop, setUserScrollTop] = useState(0);
   const [viewportH, setViewportH] = useState(600);
   const [follow, setFollow] = useState(true);
   const log = store.log;
@@ -157,22 +157,28 @@ export const TracePanel: React.FC<TracePanelProps> = ({ store, triggerArmed, onA
   })() : null;
   const rowCount = filtered ? filtered.length : log.length;
   const rowAt = (r: number) => log.at(filtered ? filtered[r] : r);
+  const scrollTop = follow ? Math.max(0, rowCount * ROW_PX - viewportH) : userScrollTop;
   const first = Math.max(0, Math.floor(scrollTop / ROW_PX) - OVERSCAN);
   const last = Math.min(rowCount, Math.ceil((scrollTop + viewportH) / ROW_PX) + OVERSCAN);
 
+  useEffect(() => {
+    if (mode !== 'scroll' || typeof ResizeObserver === 'undefined') return;
+    const el = scrollRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver(() => setViewportH(el.clientHeight));
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [mode]);
+
   useLayoutEffect(() => {
     const el = scrollRef.current;
-    if (!el || mode !== 'scroll') return;
-    setViewportH(el.clientHeight);
-    if (follow) {
-      el.scrollTop = el.scrollHeight;
-      setScrollTop(el.scrollTop);
-    }
-  });
+    if (!el || mode !== 'scroll' || !follow) return;
+    el.scrollTop = el.scrollHeight;
+  }, [mode, follow, rowCount]);
 
   const onScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const el = e.currentTarget;
-    setScrollTop(el.scrollTop);
+    setUserScrollTop(el.scrollTop);
     const atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - ROW_PX * 2;
     if (follow !== atBottom) setFollow(atBottom);
   };

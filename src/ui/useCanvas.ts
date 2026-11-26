@@ -1,4 +1,4 @@
-import { useEffect, useState, type DependencyList, type RefObject } from 'react';
+import { useEffect, useState, type RefObject } from 'react';
 
 export interface ElementSize {
   width: number;
@@ -7,14 +7,14 @@ export interface ElementSize {
 
 /**
  * CSS size of an element, kept current by a ResizeObserver (window resize as a fallback). The
- * size is null until the element is mounted; `deps` re-run the measurement when it (re)appears.
+ * size is null until the element is mounted; `active` re-runs the measurement when it (re)appears.
  */
-export function useElementSize(ref: RefObject<HTMLElement | null>, deps: DependencyList = []): ElementSize | null {
+export function useElementSize(ref: RefObject<HTMLElement | null>, active = true): ElementSize | null {
   const [size, setSize] = useState<ElementSize | null>(null);
 
   useEffect(() => {
     const el = ref.current;
-    if (!el) return;
+    if (!el || !active) return;
     const measure = () => {
       const rect = el.getBoundingClientRect();
       const width = Math.max(1, rect.width);
@@ -29,7 +29,7 @@ export function useElementSize(ref: RefObject<HTMLElement | null>, deps: Depende
     const observer = new ResizeObserver(measure);
     observer.observe(el);
     return () => observer.disconnect();
-  }, deps);
+  }, [ref, active]);
 
   return size;
 }

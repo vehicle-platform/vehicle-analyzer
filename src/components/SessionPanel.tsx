@@ -35,7 +35,8 @@ interface SessionPanelProps {
 /** Browser for recorded vehicle-server sessions (read-only HTTP, token in the Authorization header only). */
 export const SessionPanel: React.FC<SessionPanelProps> = ({ token, onTokenChange, serverUrl, onServerUrlChange, onLoad, onSelect, selectedSessionId, sessionEndMs }) => {
   const [sessions, setSessions] = useState<SessionRow[]>([]);
-  const [selected, setSelected] = useState<string | null>(selectedSessionId ?? null);
+  const [localSelected, setLocalSelected] = useState<string | null>(null);
+  const selected = selectedSessionId !== undefined ? selectedSessionId : localSelected;
   const rideSummary = useRideSummary(token, serverUrl, selected);
   const [report, setReport] = useState<unknown>(null);
   const [status, setStatus] = useState<string>('');
@@ -46,10 +47,6 @@ export const SessionPanel: React.FC<SessionPanelProps> = ({ token, onTokenChange
   useEffect(() => {
     saveSessionFilter(filter);
   }, [filter]);
-
-  useEffect(() => {
-    if (selectedSessionId !== undefined) setSelected(selectedSessionId);
-  }, [selectedSessionId]);
 
   const client = useMemo(() => new SessionClient(serverUrl, token), [serverUrl, token]);
   const reportRows = useMemo(() => (report === null ? null : summarizeReport(report)), [report]);
@@ -76,7 +73,7 @@ export const SessionPanel: React.FC<SessionPanelProps> = ({ token, onTokenChange
     });
 
   const select = (id: string) => {
-    setSelected(id);
+    setLocalSelected(id);
     onSelect?.(id);
     setReport(null);
     void run(async () => {

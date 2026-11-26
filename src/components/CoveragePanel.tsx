@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { DEFS } from '../defs';
 import type { DerivedClass } from '../defs/model';
 import { Note, Na, TermButton, TermInput, Toolbar, cn } from '../ui/primitives';
@@ -117,11 +117,10 @@ const sessionTone = (status: string): string =>
 export const CoveragePanel: React.FC<CoveragePanelProps> = ({ token, onTokenChange, serverUrl, onServerUrlChange, selectedSessionId }) => {
   const rows = useMemo(() => buildCoverage(DEFS), []);
   const [sessionId, setSessionId] = useState('');
-  const [report, setReport] = useState<unknown>(null);
-  const [reportFor, setReportFor] = useState<string | null>(null);
+  const [reportState, setReportState] = useState<{ key: string | null; session: string; report: unknown } | null>(null);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [status, setStatus] = useState('');
+  const [errorState, setErrorState] = useState<{ key: string | null; text: string } | null>(null);
+  const [statusState, setStatusState] = useState<{ key: string | null; text: string } | null>(null);
   const [groups, setGroups] = useState<CoverageGroup[]>([]);
   const [classes, setClasses] = useState<DerivedClass[]>([]);
   const [waiting, setWaiting] = useState('all');
@@ -129,13 +128,11 @@ export const CoveragePanel: React.FC<CoveragePanelProps> = ({ token, onTokenChan
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<Sort>({ key: 'group', dir: 1 });
 
-  useEffect(() => {
-    setReport(null);
-    setReportFor(null);
-    setStatus('');
-    setError(null);
-  }, [selectedSessionId]);
-
+  const selectionKey = selectedSessionId ?? null;
+  const report = reportState && reportState.key === selectionKey ? reportState.report : null;
+  const reportFor = reportState && reportState.key === selectionKey ? reportState.session : null;
+  const error = errorState && errorState.key === selectionKey ? errorState.text : null;
+  const status = statusState && statusState.key === selectionKey ? statusState.text : '';
   const selected = selectedSessionId?.trim() ?? '';
   const chosenSession = selected !== '' ? selected : sessionId.trim() === '' ? null : sessionId.trim();
   const client = useMemo(() => new SessionClient(serverUrl, token), [serverUrl, token]);
@@ -149,22 +146,21 @@ export const CoveragePanel: React.FC<CoveragePanelProps> = ({ token, onTokenChan
 
   const load = async () => {
     if (chosenSession === null) {
-      setError('Enter a session id or select one in Recorded sessions (E).');
+      setErrorState({ key: selectionKey, text: 'Enter a session id or select one in Recorded sessions (E).' });
       return;
     }
     if (serverUrl.trim() === '') {
-      setError('No vehicle-server URL configured.');
+      setErrorState({ key: selectionKey, text: 'No vehicle-server URL configured.' });
       return;
     }
     setBusy(true);
-    setError(null);
+    setErrorState(null);
     try {
       const next = await client.getReport(chosenSession);
-      setReport(next);
-      setReportFor(chosenSession);
-      setStatus(`Report loaded for ${chosenSession}.`);
+      setReportState({ key: selectionKey, session: chosenSession, report: next });
+      setStatusState({ key: selectionKey, text: `Report loaded for ${chosenSession}.` });
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Request failed.');
+      setErrorState({ key: selectionKey, text: e instanceof Error ? e.message : 'Request failed.' });
     } finally {
       setBusy(false);
     }

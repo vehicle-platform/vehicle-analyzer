@@ -55,7 +55,7 @@ export const TrackPanel: React.FC<TrackPanelProps> = ({
   const [track, setTrack] = useState<TrackResponse | null>(null);
   const [seriesNames, setSeriesNames] = useState<string[]>([]);
   const [color, setColor] = useState<string>('');
-  const [view, setView] = useState<TrackView | null>(null);
+  const [viewVersion, setViewVersion] = useState(0);
   const [reloadNonce, setReloadNonce] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -68,17 +68,13 @@ export const TrackPanel: React.FC<TrackPanelProps> = ({
     connection.current = { serverUrl, token };
   }, [serverUrl, token]);
   // The view is fitted when a track first appears for a session and on Fit, never on a refetch or resize.
-  const fitPending = useRef(true);
+  const viewRef = useRef<{ sessionId: string | null; view: TrackView | null }>({ sessionId: null, view: null });
   const lastSize = useRef<ElementSize | null>(null);
+  const visibleTrack = track && track.sessionId === sessionId ? track : null;
 
-  const bounds = useMemo(() => (track ? boundsOfSegments(track.segments) : null), [track]);
-  const canvasShown = Boolean(sessionId && serverUrl.trim() && track && !noGps && track.segments.length > 0);
-  const size = useElementSize(canvasRef, [canvasShown]);
-
-  useEffect(() => {
-    fitPending.current = true;
-    setTrack(null);
-  }, [sessionId]);
+  const bounds = useMemo(() => (visibleTrack ? boundsOfSegments(visibleTrack.segments) : null), [visibleTrack]);
+  const canvasShown = Boolean(sessionId && serverUrl.trim() && visibleTrack && !noGps && visibleTrack.segments.length > 0);
+  const size = useElementSize(canvasRef, canvasShown);
 
   useEffect(() => {
     const { serverUrl: url, token: apiToken } = connection.current;
@@ -92,7 +88,9 @@ export const TrackPanel: React.FC<TrackPanelProps> = ({
       .getSeries(sessionId, { maxPoints: 10 })
       .then((res) => {
         if (cancelled) return;
-        setSeriesNames(res.series.map((s) => s.name).filter((name) => !isPositionChannel(name)));
+        const names = res.series.map((s) => s.name).filter((name) => !isPositionChannel(name));
+        setSeriesNames(names);
+        setColor((current) => (current && names.length > 0 && !names.includes(current) ? '' : current));
       })
       .catch(() => {
         if (!cancelled) setSeriesNames([]);
@@ -137,26 +135,31 @@ export const TrackPanel: React.FC<TrackPanelProps> = ({
   }, [sessionId, color, reloadNonce]);
 
   useEffect(() => {
+    if (viewRef.current.sessionId !== sessionId) {
+      viewRef.current = { sessionId, view: null };
+      lastSize.current = null;
+    }
     if (!bounds) {
-      setView(null);
-      fitPending.current = true;
+      viewRef.current = { sessionId, view: null };
+      lastSize.current = null;
       return;
     }
     if (!size) return;
     const previous = lastSize.current;
     lastSize.current = size;
-    if (fitPending.current) {
-      fitPending.current = false;
-      setView(fitView(bounds, size.width, size.height, PADDING));
+    const current = viewRef.current.view;
+    if (!current) {
+      viewRef.current = { sessionId, view: fitView(bounds, size.width, size.height, PADDING) };
     } else if (previous && (previous.width !== size.width || previous.height !== size.height)) {
-      setView((current) => (current ? resizeView(current, previous.width, previous.height, size.width, size.height) : current));
+      viewRef.current = { sessionId, view: resizeView(current, previous.width, previous.height, size.width, size.height) };
     }
-  }, [bounds, size]);
+  }, [bounds, size, sessionId]);
 
   useEffect(() => {
-    if (!track || !view || !size || !canvasRef.current) return;
-    drawTrack(canvasRef.current, track, view, replaySynced ? replayTimeSec : null, theme);
-  }, [track, view, replayTimeSec, replaySynced, theme, size, dpr]);
+    const view = viewRef.current.view;
+    if (!visibleTrack || !view || !size || !canvasRef.current) return;
+    drawTrack(canvasRef.current, visibleTrack, view, replaySynced ? replayTimeSec : null, theme);
+  }, [visibleTrack, viewVersion, replayTimeSec, replaySynced, theme, size, dpr]);
 
   // Native listener: React registers wheel handlers as passive, where preventDefault is ignored.
   useEffect(() => {
@@ -164,16 +167,21 @@ export const TrackPanel: React.FC<TrackPanelProps> = ({
     if (!canvas) return;
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
+      const current = viewRef.current.view;
+      if (!current) return;
       const rect = canvas.getBoundingClientRect();
       const factor = e.deltaY < 0 ? 1.2 : 1 / 1.2;
-      setView((current) => (current ? zoomAt(current, e.clientX - rect.left, e.clientY - rect.top, factor) : current));
+      viewRef.current = { sessionId, view: zoomAt(current, e.clientX - rect.left, e.clientY - rect.top, factor) };
+      setViewVersion((value) => value + 1);
     };
     canvas.addEventListener('wheel', onWheel, { passive: false });
     return () => canvas.removeEventListener('wheel', onWheel);
-  }, [canvasShown]);
+  }, [canvasShown, sessionId]);
 
   const fit = () => {
-    if (bounds && size) setView(fitView(bounds, size.width, size.height, PADDING));
+    if (!bounds || !size) return;
+    viewRef.current = { sessionId, view: fitView(bounds, size.width, size.height, PADDING) };
+    setViewVersion((value) => value + 1);
   };
 
   const localPoint = (e: React.MouseEvent<HTMLCanvasElement>): { x: number; y: number } => {
@@ -182,20 +190,22 @@ export const TrackPanel: React.FC<TrackPanelProps> = ({
   };
 
   const onPointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    if (!view || e.button !== 0) return;
+    if (!viewRef.current.view || e.button !== 0) return;
     const p = localPoint(e);
     drag.current = { x: p.x, y: p.y, moved: false };
     e.currentTarget.setPointerCapture?.(e.pointerId);
   };
 
   const onPointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    if (!drag.current || !view) return;
+    const current = viewRef.current.view;
+    if (!drag.current || !current) return;
     const p = localPoint(e);
     const dx = p.x - drag.current.x;
     const dy = p.y - drag.current.y;
     if (Math.abs(dx) + Math.abs(dy) > 2) drag.current.moved = true;
     drag.current = { x: p.x, y: p.y, moved: drag.current.moved };
-    setView((current) => (current ? panView(current, dx, dy) : current));
+    viewRef.current = { sessionId, view: panView(current, dx, dy) };
+    setViewVersion((value) => value + 1);
   };
 
   const onPointerUp = () => {
@@ -208,20 +218,17 @@ export const TrackPanel: React.FC<TrackPanelProps> = ({
       suppressClick.current = false;
       return;
     }
-    if (!track || !view || !replaySynced) return;
+    const view = viewRef.current.view;
+    if (!visibleTrack || !view || !replaySynced) return;
     const p = localPoint(e);
-    const hit = nearestByScreen(track.segments, view, p.x, p.y, SEEK_RADIUS_PX);
+    const hit = nearestByScreen(visibleTrack.segments, view, p.x, p.y, SEEK_RADIUS_PX);
     if (hit && onSeekTime) onSeekTime(hit.tMs);
   };
 
-  useEffect(() => {
-    if (color && seriesNames.length > 0 && !seriesNames.includes(color)) setColor('');
-  }, [color, seriesNames]);
-
   const colorOptions = ['', ...seriesNames];
-  const legendName = track?.color?.name ?? 'speed';
-  const legendUnit = track?.color ? (track.color.unit ?? '-') : 'm/s';
-  const legendScale = useMemo(() => (track ? colorScale(valuesForColor(track), 16) : null), [track]);
+  const legendName = visibleTrack?.color?.name ?? 'speed';
+  const legendUnit = visibleTrack?.color ? (visibleTrack.color.unit ?? '-') : 'm/s';
+  const legendScale = useMemo(() => (visibleTrack ? colorScale(valuesForColor(visibleTrack), 16) : null), [visibleTrack]);
 
   if (!serverUrl.trim()) {
     return (
@@ -271,24 +278,24 @@ export const TrackPanel: React.FC<TrackPanelProps> = ({
 
       {!sessionId ? (
         <Empty>No recorded session selected. Pick one in Sessions (E).</Empty>
-      ) : busy && !track ? (
+      ) : busy && !visibleTrack ? (
         <Empty>Loading track...</Empty>
       ) : noGps ? (
         <Empty>No GPS in this session.</Empty>
-      ) : !track ? (
+      ) : !visibleTrack ? (
         <Empty>No track to draw.</Empty>
-      ) : track.segments.length === 0 ? (
+      ) : visibleTrack.segments.length === 0 ? (
         <Empty>No usable GNSS samples in this session.</Empty>
       ) : (
         <>
           <div className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-1 border-b border-term-rule px-[14px] py-[6px] text-term-dim">
             <span className="text-term-hi">{sessionId}</span>
             <span>
-              {fmt(track.pathLengthM)} m path · {track.pointsTotal} samples
-              {track.downsampled ? ' (downsampled)' : ''}
+              {fmt(visibleTrack.pathLengthM)} m path · {visibleTrack.pointsTotal} samples
+              {visibleTrack.downsampled ? ' (downsampled)' : ''}
             </span>
             <span>
-              excluded: no-fix {track.excluded.noFix}, stale fix {track.excluded.staleFix}, heading {track.excluded.untrustedHeading}
+              excluded: no-fix {visibleTrack.excluded.noFix}, stale fix {visibleTrack.excluded.staleFix}, heading {visibleTrack.excluded.untrustedHeading}
             </span>
             {legendScale && (
               <span className="ml-auto flex items-center gap-1" aria-label="Colour legend">

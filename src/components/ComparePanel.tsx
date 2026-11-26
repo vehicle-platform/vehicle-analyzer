@@ -36,6 +36,8 @@ const H_DIFF = 120;
 
 const fmt = (n: number) => String(Number(n.toPrecision(5)));
 
+const trackRequestKey = (show: boolean, idA: string, idB: string, nonce: number): string => `${show}:${idA}:${idB}:${nonce}`;
+
 /** One SVG trace area with a frame, min/max labels and one polyline set per trace. */
 const Plot: React.FC<{
   x: number[];
@@ -116,10 +118,7 @@ export const ComparePanel: React.FC<ComparePanelProps> = ({ token, onTokenChange
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [showTracks, setShowTracks] = useState(false);
-  const [trackA, setTrackA] = useState<TrackResponse | null>(null);
-  const [trackB, setTrackB] = useState<TrackResponse | null>(null);
-  const [trackBusy, setTrackBusy] = useState(false);
-  const [trackError, setTrackError] = useState<string | null>(null);
+  const [trackState, setTrackState] = useState<{ key: string; a: TrackResponse | null; b: TrackResponse | null; error: string | null } | null>(null);
   const [trackNonce, setTrackNonce] = useState(0);
   const [summaryA, setSummaryA] = useState<RideSummary | null>(null);
   const [summaryB, setSummaryB] = useState<RideSummary | null>(null);
@@ -179,30 +178,27 @@ export const ComparePanel: React.FC<ComparePanelProps> = ({ token, onTokenChange
     connection.current = { serverUrl, token };
   }, [serverUrl, token]);
 
+  const trackKey = trackRequestKey(showTracks, idA, idB, trackNonce);
+  const currentTrack = trackState && trackState.key === trackKey ? trackState : null;
+  const trackA = currentTrack?.a ?? null;
+  const trackB = currentTrack?.b ?? null;
+  const trackError = currentTrack?.error ?? null;
+  const trackBusy = showTracks && idA !== '' && idB !== '' && currentTrack === null;
+
   // Fetches on show, on a session change while shown and on Compare. A response that is no
   // longer the latest request is dropped (the cleanup flags it).
   useEffect(() => {
-    if (!showTracks || !idA || !idB) {
-      setTrackBusy(false);
-      return;
-    }
+    if (!showTracks || !idA || !idB) return;
     let cancelled = false;
-    setTrackBusy(true);
-    setTrackError(null);
-    setTrackA(null);
-    setTrackB(null);
+    const key = trackRequestKey(showTracks, idA, idB, trackNonce);
     const trackClient = new TrackClient(connection.current.serverUrl, connection.current.token);
     Promise.all([trackClient.getTrack(idA), trackClient.getTrack(idB)])
       .then(([a, b]) => {
-        if (cancelled) return;
-        setTrackA(a);
-        setTrackB(b);
-        setTrackBusy(false);
+        if (!cancelled) setTrackState({ key, a, b, error: null });
       })
       .catch((e: unknown) => {
         if (cancelled) return;
-        setTrackError(e instanceof Error ? e.message : 'Track request failed.');
-        setTrackBusy(false);
+        setTrackState({ key, a: null, b: null, error: e instanceof Error ? e.message : 'Track request failed.' });
       });
     return () => {
       cancelled = true;

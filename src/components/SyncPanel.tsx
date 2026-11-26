@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { CanFrame, DbcMessageDef, TelemetrySource } from '../types/can';
 import { CaptureStore } from '../state/captureStore';
 import { parseDbcText } from '../services/dbcParser';
@@ -55,7 +55,7 @@ export const SyncPanel: React.FC<SyncPanelProps> = ({ store, source, onLogLoaded
     reader.readAsText(file);
   };
 
-  const cancelImport = () => {
+  const cancelImport = useCallback(() => {
     if (importState.status !== 'running') return;
     const { name, parsed, total } = importState;
     importSeq.current += 1;
@@ -63,12 +63,12 @@ export const SyncPanel: React.FC<SyncPanelProps> = ({ store, source, onLogLoaded
     logJob.current = null;
     setStatus(`Import of ${name} cancelled after ${parsed.toLocaleString()} of ${total.toLocaleString()} frames.`);
     setImportState({ status: 'cancelled', name, parsed, total });
-  };
+  }, [importState]);
 
   // Finishing would switch back to log replay, so a source chosen meanwhile cancels the import.
   useEffect(() => {
     if (source !== 'local_file' && importState.status === 'running') cancelImport();
-  }, [source]);
+  }, [source, importState.status, cancelImport]);
 
   const handleDbcUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
