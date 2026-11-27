@@ -86,12 +86,12 @@ describe('startLogIngest', () => {
     expect(w.posted).toHaveLength(1);
 
     // Mismatched id ignored
-    w.onmessage?.({ data: { kind: 'progress', id: 99, parsed: 1, total: 2 } } as MessageEvent<IngestResponse>);
+    w.onmessage?.({ data: { kind: 'progress', id: 99, parsed: 1, total: 2 } } as unknown as MessageEvent<IngestResponse>);
     expect(onProgress).not.toHaveBeenCalled();
 
-    w.onmessage?.({ data: { kind: 'progress', id: 7, parsed: 1, total: 2 } } as MessageEvent<IngestResponse>);
-    w.onmessage?.({ data: { kind: 'batch', id: 7, frames: [], parsed: 1, total: 2 } } as MessageEvent<IngestResponse>);
-    w.onmessage?.({ data: { kind: 'done', id: 7, total: 2 } } as MessageEvent<IngestResponse>);
+    w.onmessage?.({ data: { kind: 'progress', id: 7, parsed: 1, total: 2 } } as unknown as MessageEvent<IngestResponse>);
+    w.onmessage?.({ data: { kind: 'batch', id: 7, frames: [], parsed: 1, total: 2 } } as unknown as MessageEvent<IngestResponse>);
+    w.onmessage?.({ data: { kind: 'done', id: 7, total: 2 } } as unknown as MessageEvent<IngestResponse>);
 
     expect(onProgress).toHaveBeenCalledWith(1, 2);
     expect(onBatch).toHaveBeenCalledWith([]);
@@ -133,7 +133,7 @@ describe('startLogIngest', () => {
       onError: onError3,
     });
     const w3 = FakeWorker.instances[2];
-    w3.onmessage?.({ data: { kind: 'error', id: 11, message: 'bad log' } } as MessageEvent<IngestResponse>);
+    w3.onmessage?.({ data: { kind: 'error', id: 11, message: 'bad log' } } as unknown as MessageEvent<IngestResponse>);
     expect(onError3).toHaveBeenCalledWith('bad log');
     expect(w3.terminated).toBe(true);
 
@@ -147,7 +147,7 @@ describe('startLogIngest', () => {
     const w4 = FakeWorker.instances[3];
     job4.cancel();
     expect(w4.terminated).toBe(true);
-    w4.onmessage?.({ data: { kind: 'done', id: 10, total: 1 } } as MessageEvent<IngestResponse>);
+    w4.onmessage?.({ data: { kind: 'done', id: 10, total: 1 } } as unknown as MessageEvent<IngestResponse>);
     expect(onDone4).not.toHaveBeenCalled();
   });
 });

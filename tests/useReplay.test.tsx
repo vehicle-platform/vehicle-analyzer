@@ -46,7 +46,7 @@ describe('useReplay', () => {
           ingestItem: (item) => {
             ingested.push(item);
             if (item.kind === 'frame') store.ingest(item.frame);
-            else store.ingestSample(item.key, item.t, item.v);
+            else store.ingestSample(item.key, item.t, item.value);
           },
           rxCounterRef,
           beginReplayLoad,
@@ -100,8 +100,8 @@ describe('useReplay', () => {
     const beginReplayLoad = vi.fn();
     const rxCounterRef = { current: 3 };
     const series: RecordedSeries[] = [
-      { name: 'CUSTOM_SIG', kind: 'sensor', unit: 'degC', tMs: [0, 500, 1000], v: [20, 25, 30] },
-      { name: 'UNKNOWN_DID', kind: 'did', unit: 'V', tMs: [0, 1000], v: [12.1, 12.4] },
+      { name: 'CUSTOM_SIG', kind: 'sensor', unit: 'degC', pointsTotal: 3, downsampled: false, tMs: [0, 500, 1000], v: [20, 25, 30] },
+      { name: 'UNKNOWN_DID', kind: 'did', unit: 'V', pointsTotal: 2, downsampled: false, tMs: [0, 1000], v: [12.1, 12.4] },
     ];
 
     const { result } = renderHook(() =>
@@ -111,7 +111,7 @@ describe('useReplay', () => {
         recordedSessionId: 'sess-1',
         ingest: (f) => store.ingest(f),
         ingestItem: (item) => {
-          if (item.kind === 'sample') store.ingestSample(item.key, item.t, item.v);
+          if (item.kind === 'sample') store.ingestSample(item.key, item.t, item.value);
         },
         rxCounterRef,
         beginReplayLoad,
