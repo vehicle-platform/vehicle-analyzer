@@ -45,12 +45,12 @@ export default defineConfig({
       // WEB-2 ratchet: floor = measured, rounded down. Only ever raise these (run
       // `vitest run --coverage`, bump by hand); the parsers in services/defs have their own floor.
       thresholds: {
-        statements: 83,
-        branches: 76,
-        functions: 81,
-        lines: 85,
-        'src/services/**': { statements: 88, branches: 82, functions: 91, lines: 91 },
-        'src/defs/**': { statements: 91, branches: 71, functions: 100, lines: 98 },
+        statements: 86,
+        branches: 79,
+        functions: 84,
+        lines: 88,
+        'src/services/**': { statements: 93, branches: 86, functions: 94, lines: 96 },
+        'src/defs/**': { statements: 93, branches: 71, functions: 100, lines: 98 },
       },
     },
   },
