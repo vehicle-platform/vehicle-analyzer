@@ -4,6 +4,7 @@ import type { IngestRequest, IngestResponse } from '@/services/ingestProtocol';
 describe('ingest.worker', () => {
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
     vi.resetModules();
   });
 
@@ -39,12 +40,12 @@ describe('ingest.worker', () => {
     const batches = posted.filter((m) => m.kind === 'batch');
     const done = posted.find((m) => m.kind === 'done');
     expect(batches.length).toBeGreaterThan(0);
-    if (batches[0].kind === 'batch') {
-      expect(batches[0].id).toBe(7);
-      expect(batches[0].frames.length).toBe(1);
-      expect(batches[0].frames[0].id).toBe(0x110);
-      expect(batches[0].frames[0].data).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
-    }
+    const first = batches[0];
+    if (first.kind !== 'batch') throw new Error('expected a batch message');
+    expect(first.id).toBe(7);
+    expect(first.frames.length).toBe(1);
+    expect(first.frames[0].id).toBe(0x110);
+    expect(first.frames[0].data).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
     expect(done).toMatchObject({ kind: 'done', id: 7, total: 1 });
   });
 
